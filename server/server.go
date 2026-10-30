@@ -3292,6 +3292,7 @@ func (s *Server) settingsPayload() map[string]any {
 	return map[string]any{
 		"traffic_capture":          s.m.TrafficEnabled(),
 		"agent_traffic_binding":    s.m.pg.GetBool(settingAgentTrafficBinding, false),
+		"output_language":          outputLanguage(s.m.pg), // agent 输出语言(zh|en)；每 run 读，对之后启动的 run 生效
 		"llm_record":               s.m.LLMRecordEnabled(),
 		"web_search_enabled":       on,
 		"web_search_backend":       backend,
@@ -3319,6 +3320,14 @@ func (s *Server) settingsPayload() map[string]any {
 		"notify_public_base_url":     notifyPublicBaseURL(s.m.pg),
 		"notify_digest_interval_min": notifyDigestIntervalMin(s.m.pg),
 	}
+}
+
+// outputLanguage 读 agent 输出语言；未配置或非法值回落到 zh(内置提示词的语言)。
+func outputLanguage(pg *db.DB) string {
+	if v, _, _ := pg.GetSetting(settingOutputLanguage); strings.TrimSpace(v) == "en" {
+		return "en"
+	}
+	return "zh"
 }
 
 // notifyPublicBaseURL 读推送回链用的外部地址。
@@ -3360,9 +3369,10 @@ func (s *Server) pgDetectPython(w http.ResponseWriter, r *http.Request) {
 // off, agents get no proxy config, no traffic tools, and no proxy prompt content.
 func (s *Server) putSettings(w http.ResponseWriter, r *http.Request) {
 	var req struct {
-		TrafficCapture      *bool `json:"traffic_capture"`
-		AgentTrafficBinding *bool `json:"agent_traffic_binding"`
-		LLMRecord           *bool `json:"llm_record"` // LLM 录制开关（默认关）；即时生效，无需重建 agent
+		TrafficCapture      *bool   `json:"traffic_capture"`
+		AgentTrafficBinding *bool   `json:"agent_traffic_binding"`
+		OutputLanguage      *string `json:"output_language"` // agent 输出语言 zh|en；每 run 读，无需重建 agent
+		LLMRecord           *bool   `json:"llm_record"`      // LLM 录制开关（默认关）；即时生效，无需重建 agent
 		// Web search. WebSearchEnabled/Backend toggle the tool + backend; BraveKey/TavilyKey
 		// are optional — omit (null) to leave a stored key untouched, send "" to clear.
 		WebSearchEnabled *bool   `json:"web_search_enabled"`
@@ -3506,6 +3516,17 @@ func (s *Server) putSettings(w http.ResponseWriter, r *http.Request) {
 	}
 	if req.AgentTrafficBinding != nil {
 		if err := s.m.pg.SetBool(settingAgentTrafficBinding, *req.AgentTrafficBinding); err != nil {
+			writeErr(w, 500, err.Error())
+			return
+		}
+	}
+	if req.OutputLanguage != nil {
+		lang := strings.TrimSpace(*req.OutputLanguage)
+		if lang != "zh" && lang != "en" {
+			writeErr(w, 400, "output_language must be zh or en")
+			return
+		}
+		if err := s.m.pg.SetSetting(settingOutputLanguage, lang); err != nil {
 			writeErr(w, 500, err.Error())
 			return
 		}

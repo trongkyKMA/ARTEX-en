@@ -36,6 +36,31 @@ func nowStr() string { return time.Now().Format("2006-01-02 15:04:05 MST") }
 // half-rendered prompt. Callers append the code-owned tail (trafficTool / 中间产物
 // 输出规约) AFTER this, so those can't be edited away via the DB body.
 func renderSystem(agentKey, def string, vars any) string {
+	return renderBody(agentKey, def, vars) + LanguageDirective()
+}
+
+// OutputLanguage returns the language agents write user-facing text in: "en" or
+// "zh". The server wires it to the output_language setting. nil or any other value
+// keeps the built-in behaviour (the prompts themselves are written in Chinese).
+var OutputLanguage func() string
+
+// LanguageDirective is appended to every system prompt when the output language is
+// English. It comes after the (possibly user-edited) prompt body so it overrides
+// language instructions in it, e.g. the reporter's 「全程中文」. Empty for zh, so
+// the zh prompt — and its prompt-cache prefix — is byte-identical to before.
+func LanguageDirective() string {
+	if OutputLanguage == nil || OutputLanguage() != "en" {
+		return ""
+	}
+	return englishOutputDirective
+}
+
+const englishOutputDirective = "\n\n**Output language (system setting; overrides any language instruction above)**: " +
+	"write all of your output in English — replies to the user, finding titles, descriptions, impact, remediation and reports, " +
+	"facts, hints, intent summaries, todo items, goal text and retest verdict summaries. " +
+	"Keep tool names, parameter names, enum values, code, commands, file paths, HTTP requests/responses and quoted target content verbatim."
+
+func renderBody(agentKey, def string, vars any) string {
 	tmpl := def
 	if PromptOverride != nil {
 		if t, ok := PromptOverride(agentKey); ok && t != "" {

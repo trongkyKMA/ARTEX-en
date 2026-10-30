@@ -80,3 +80,26 @@ func TestRenderSystemOverrideAndFallback(t *testing.T) {
 		t.Fatalf("worker without proxy must NOT inject trafficTool: %q", noProxy)
 	}
 }
+
+func TestRenderSystemOutputLanguage(t *testing.T) {
+	t.Cleanup(func() { PromptOverride = nil; OutputLanguage = nil })
+	PromptOverride = func(string) (string, bool) { return "BODY 全程中文", true }
+
+	// unset / zh → prompt unchanged (byte-identical, keeps the prompt-cache prefix)
+	for _, lang := range []func() string{nil, func() string { return "zh" }} {
+		OutputLanguage = lang
+		if got := renderSystem("reporter", "DEFAULT", chatVars{}); got != "BODY 全程中文" {
+			t.Fatalf("zh should leave the prompt unchanged, got %q", got)
+		}
+	}
+
+	// en → directive appended after the (user-edited) body so it overrides 「全程中文」
+	OutputLanguage = func() string { return "en" }
+	got := renderSystem("reporter", "DEFAULT", chatVars{})
+	if !strings.HasPrefix(got, "BODY 全程中文") || !strings.HasSuffix(got, englishOutputDirective) {
+		t.Fatalf("en should append the English directive after the body, got %q", got)
+	}
+	if !strings.Contains(plannerSystem("g", "/data", "/data"), englishOutputDirective) {
+		t.Fatal("planner system prompt is missing the English directive")
+	}
+}

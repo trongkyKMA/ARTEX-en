@@ -2,7 +2,15 @@
 
 import * as React from "react";
 
-import { CpuIcon, FlaskConicalIcon, KeyboardIcon, RadioTowerIcon, SearchIcon, ShieldAlertIcon } from "lucide-react";
+import {
+  CpuIcon,
+  FlaskConicalIcon,
+  KeyboardIcon,
+  LanguagesIcon,
+  RadioTowerIcon,
+  SearchIcon,
+  ShieldAlertIcon,
+} from "lucide-react";
 import { toast } from "sonner";
 
 import { Button } from "@/components/ui/button";
@@ -21,6 +29,7 @@ import { UpdateCard } from "./_components/update-card";
 export default function SystemSettingsPage() {
   const [trafficCapture, setTrafficCapture] = React.useState(false);
   const [agentTrafficBinding, setAgentTrafficBinding] = React.useState(false);
+  const [outputLanguage, setOutputLanguage] = React.useState<Settings["output_language"]>("zh");
   const [webSearch, setWebSearch] = React.useState(false);
   const [backend, setBackend] = React.useState("ddgs");
   const [braveKeySet, setBraveKeySet] = React.useState(false);
@@ -50,6 +59,7 @@ export default function SystemSettingsPage() {
   const apply = React.useCallback((s: Settings) => {
     setTrafficCapture(!!s.traffic_capture);
     setAgentTrafficBinding(!!s.agent_traffic_binding);
+    setOutputLanguage(s.output_language === "en" ? "en" : "zh");
     setWebSearch(!!s.web_search_enabled);
     setBackend(s.web_search_backend || "ddgs");
     setBraveKeySet(!!s.brave_key_set);
@@ -129,6 +139,21 @@ export default function SystemSettingsPage() {
       .setSettings({ constraints_inject_planner: v })
       .then(apply)
       .catch(() => setInjectPlanner(!v)); // revert on failure
+  };
+
+  const changeOutputLanguage = (v: Settings["output_language"]) => {
+    const prev = outputLanguage;
+    setOutputLanguage(v); // optimistic
+    api
+      .setSettings({ output_language: v })
+      .then((s) => {
+        apply(s);
+        toast.success(tr("Agent 输出语言已保存", "Agent output language saved"));
+      })
+      .catch((e) => {
+        setOutputLanguage(prev);
+        toast.error(tr(`保存失败：${(e as Error).message}`, `Save failed: ${(e as Error).message}`));
+      });
   };
 
   const toggleAgentTrafficBinding = (v: boolean) => {
@@ -336,6 +361,44 @@ export default function SystemSettingsPage() {
               disabled={!loaded || saving}
               onCheckedChange={toggleTraffic}
             />
+          </CardContent>
+        </Card>
+
+        <Card className="mb-4 break-inside-avoid md:mb-6">
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2 text-base">
+              <LanguagesIcon className="size-4" />
+              {tr("Agent 输出语言", "Agent output language")}
+            </CardTitle>
+            <CardDescription id="output-language-description">
+              {tr(
+                "Agent 撰写漏洞、事实、意图、报告、复测结论及对话回复所用的语言。选 English 时，会在所有 Agent 的系统提示末尾追加英文输出要求（覆盖提示词里的「全程中文」等语言要求），提示词正文不变。",
+                "The language Agents use for findings, facts, intents, reports, retest verdicts and chat replies. With English, an English-output instruction is appended to the end of every Agent's system prompt (overriding language instructions such as 「全程中文」 in the prompts); the prompt bodies are unchanged.",
+              )}
+              <br />
+              {tr(
+                "对之后启动的 Agent 运行生效；已生成的内容不会被翻译。拦截审批的模型裁决理由保持中文。",
+                "Applies to Agent runs started afterwards; existing content is not translated. Model verdict reasons in intercept approvals stay in Chinese.",
+              )}
+            </CardDescription>
+          </CardHeader>
+          <CardContent className="flex items-center justify-between gap-4">
+            <Label htmlFor="output-language" className="text-sm font-normal text-muted-foreground">
+              {tr("输出语言", "Output language")}
+            </Label>
+            <Select
+              value={outputLanguage}
+              disabled={!loaded}
+              onValueChange={(v) => changeOutputLanguage(v as Settings["output_language"])}
+            >
+              <SelectTrigger id="output-language" aria-describedby="output-language-description" className="w-48">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="zh">中文</SelectItem>
+                <SelectItem value="en">English</SelectItem>
+              </SelectContent>
+            </Select>
           </CardContent>
         </Card>
 
