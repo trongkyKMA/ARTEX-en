@@ -58,9 +58,13 @@ func LanguageDirective() string {
 	return englishOutputDirective
 }
 
+// EnglishDirective returns the English output directive whatever the setting, for
+// callers that must never get the zh directive (the intercept judge).
+func EnglishDirective() string { return englishOutputDirective }
+
 // englishOutputDirective keeps agent output in English whatever language the task,
 // its goals or the user's messages are written in.
-const englishOutputDirective = "\n\n**Output language (system setting, overrides any other language requirement above)**: write all output in English — replies, finding titles/descriptions/impact/remediation/reports, facts, hints, intent summaries, todo and goal text, retest summaries. Do this even when the task description, goals, earlier notes or user messages are written in another language (e.g. Chinese): restate their content in English. Keep tool names, parameter names, enum values, code, commands, file paths, HTTP requests/responses and quoted target text verbatim."
+const englishOutputDirective = "\n\n**Output language (system setting, overrides any other language requirement above)**: write all output in English — replies, finding titles/descriptions/impact/remediation/reports, facts, hints, intent summaries, todo and goal text, retest summaries. Do this even when the task description, goals, earlier notes or user messages are written in another language (e.g. Chinese): restate their content in English. This governs the prose you write, not the data you work with: tool-call argument values, search keywords, company/product/person names, identifiers, enum values, code, commands, payloads, file paths, HTTP requests/responses and text quoted from the target keep their original language and form — never translate them, e.g. search a Chinese company by its Chinese name."
 
 // chineseOutputDirective is intentionally written in Chinese: it switches agent output
 // to Simplified Chinese when the output_language setting is "zh".

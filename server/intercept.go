@@ -51,9 +51,7 @@ func (s *Server) wireInterceptReviewer() {
 		// Tag this call's usage as the "judge" lane so the config page can report
 		// how much the fallback approval has spent, separate from model profiles.
 		ctx = llmrec.WithWorker(ctx, judgeWorkerLane)
-		// Without the language directive the judge explains itself in the language of the
-		// reviewed command, e.g. Chinese for a task written in Chinese.
-		text, err := reviewCompletion(ctx, prov, prompt+agent.LanguageDirective(), input)
+		text, err := reviewCompletion(ctx, prov, judgeSystemPrompt(prompt, outputLanguage(s.m.pg)), input)
 		if err != nil {
 			return intercept.Decision{ProfileID: profileID}, err
 		}
@@ -63,6 +61,18 @@ func (s *Server) wireInterceptReviewer() {
 		}
 		return intercept.Decision{Action: v.Action, Message: v.Reason, ProfileID: profileID}, nil
 	})
+}
+
+// judgeSystemPrompt adds the English output directive to the judge prompt; without it
+// the judge explains itself in the language of the reviewed command, e.g. Chinese for
+// a task written in Chinese. The zh directive is NOT added: it could make the model
+// translate the comment labels, the verdict would then fail to parse and fall back to
+// llm_judge_fail_action (allow by default).
+func judgeSystemPrompt(prompt, lang string) string {
+	if lang == "zh" {
+		return prompt
+	}
+	return prompt + agent.EnglishDirective()
 }
 
 func reviewCompletion(ctx context.Context, prov llm.Provider, prompt string, input intercept.ReviewInput) (string, error) {

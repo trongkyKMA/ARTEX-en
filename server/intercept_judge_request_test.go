@@ -6,6 +6,7 @@ import (
 	"iter"
 	"testing"
 
+	"github.com/Autumn-27/artex/agent"
 	"github.com/Autumn-27/norma/llm"
 )
 
@@ -59,5 +60,20 @@ func TestJudgeRequestRetriesWhenThinkingCannotBeDisabled(t *testing.T) {
 	}
 	if r := p.reqs[1]; r.Thinking != "" || r.MaxTokens <= 1024 || r.Temperature != nil {
 		t.Fatalf("retry should use the profile's thinking setting with a larger budget and no temperature: %+v", r)
+	}
+}
+
+// The judge gets the English directive in en mode (so its comment is not written in
+// the language of a Chinese command) but never the zh one: a translated comment label
+// would fail to parse and fall back to llm_judge_fail_action (allow by default).
+func TestJudgeSystemPromptLanguage(t *testing.T) {
+	const base = "JUDGE POLICY"
+	for _, lang := range []string{"en", "", "bogus"} {
+		if got := judgeSystemPrompt(base, lang); got != base+agent.EnglishDirective() {
+			t.Fatalf("lang %q: want English directive appended, got %q", lang, got)
+		}
+	}
+	if got := judgeSystemPrompt(base, "zh"); got != base {
+		t.Fatalf("zh must leave the judge prompt unchanged, got %q", got)
 	}
 }
