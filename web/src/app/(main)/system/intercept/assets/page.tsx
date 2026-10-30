@@ -20,7 +20,7 @@ import { api } from "@/lib/api";
 import { tr } from "@/lib/i18n";
 import type { AssetInterceptKind, AssetInterceptRule } from "@/lib/types";
 
-// ---- kind 元信息 ----
+// ---- kind metadata ----
 
 const GROUP_EXACT = tr("全等匹配", "Exact match");
 const GROUP_FUZZY = tr("模糊匹配", "Fuzzy match");
@@ -92,7 +92,7 @@ type RuleForm = {
 
 const defaultForm = (): RuleForm => ({ enabled: true, kind: "fuzzy_domain", pattern: "", note: "" });
 
-// 前端轻校验（与后端一致：仅 exact_ip / cidr 做格式校验，其余交后端）。
+// Light frontend validation (same as the backend: only exact_ip / cidr are format-checked, the rest is left to the backend).
 function frontValidate(form: RuleForm): string | null {
   const p = form.pattern.trim();
   if (!p) return tr("匹配内容不能为空", "Pattern is required");

@@ -17,11 +17,11 @@ func TestRenderSystemOverrideAndFallback(t *testing.T) {
 	// override → rendered with vars
 	PromptOverride = func(k string) (string, bool) {
 		if k == "planner" {
-			return "目标:{{.Goal}} 范围:{{.Scope}}", true
+			return "Goal:{{.Goal}} Scope:{{.Scope}}", true
 		}
 		return "", false
 	}
-	if got := renderSystem("planner", "DEFAULT", PlannerVars{Goal: "拿下X", Scope: "*.x.com"}); got != "目标:拿下X 范围:*.x.com" {
+	if got := renderSystem("planner", "DEFAULT", PlannerVars{Goal: "pwn X", Scope: "*.x.com"}); got != "Goal:pwn X Scope:*.x.com" {
 		t.Fatalf("override render: %q", got)
 	}
 
@@ -32,13 +32,13 @@ func TestRenderSystemOverrideAndFallback(t *testing.T) {
 	}
 
 	// full plannerSystem path: DB body [A] is honored, then the code-owned tail
-	// [C] (中间产物输出规约) is ALWAYS appended — editing the body can't drop it.
+	// [C] (intermediate-artifact output rules) is ALWAYS appended — editing the body can't drop it.
 	PromptOverride = func(k string) (string, bool) { return "PLANNER {{.Goal}}", true }
-	got := plannerSystem("拿下X", "/data", "/data")
-	if !strings.HasPrefix(got, "PLANNER 拿下X") {
+	got := plannerSystem("pwn X", "/data", "/data")
+	if !strings.HasPrefix(got, "PLANNER pwn X") {
 		t.Fatalf("plannerSystem body not honored: %q", got)
 	}
-	if !strings.Contains(got, "中间产物输出规约") || !strings.Contains(got, "/data") {
+	if !strings.Contains(got, "Intermediate artifact output rules") || !strings.Contains(got, "/data") {
 		t.Fatalf("plannerSystem missing code-owned artifact tail: %q", got)
 	}
 
@@ -48,10 +48,10 @@ func TestRenderSystemOverrideAndFallback(t *testing.T) {
 	// block is gated on the CA (arg 2), NOT on ProxyAddr — a global egress proxy
 	// with capture off routes traffic but records nothing.
 	PromptOverride = func(k string) (string, bool) {
-		return "{{if .ProxyAddr}}走代理 {{.ProxyAddr}}{{else}}手动{{end}}", true
+		return "{{if .ProxyAddr}}via proxy {{.ProxyAddr}}{{else}}manual{{end}}", true
 	}
 	recording := workerSystem("127.0.0.1:8080", "/ca.pem", "/data", "/data")
-	if !strings.HasPrefix(recording, "走代理 127.0.0.1:8080") {
+	if !strings.HasPrefix(recording, "via proxy 127.0.0.1:8080") {
 		t.Fatalf("worker proxy branch body: %q", recording)
 	}
 	if !strings.Contains(recording, "traffic_search") {
@@ -60,20 +60,20 @@ func TestRenderSystemOverrideAndFallback(t *testing.T) {
 	if strings.Contains(recording, "traffic_refs") {
 		t.Fatalf("worker bypassed shared optional evidence policy: %q", recording)
 	}
-	if !strings.Contains(recording, "中间产物输出规约") {
+	if !strings.Contains(recording, "Intermediate artifact output rules") {
 		t.Fatalf("worker missing artifact tail: %q", recording)
 	}
 	// Egress proxy set but capture OFF (no CA): the ProxyAddr template branch still
 	// renders, but the trafficTool block must NOT — those tools are not registered.
 	egressOnly := workerSystem("127.0.0.1:8080", "", "/data", "/data")
-	if !strings.HasPrefix(egressOnly, "走代理 127.0.0.1:8080") {
+	if !strings.HasPrefix(egressOnly, "via proxy 127.0.0.1:8080") {
 		t.Fatalf("worker egress-only branch body: %q", egressOnly)
 	}
 	if strings.Contains(egressOnly, "traffic_search") {
 		t.Fatalf("worker without recording must NOT inject trafficTool: %q", egressOnly)
 	}
 	noProxy := workerSystem("", "", "/data", "/data")
-	if !strings.HasPrefix(noProxy, "手动") {
+	if !strings.HasPrefix(noProxy, "manual") {
 		t.Fatalf("worker no-proxy branch body: %q", noProxy)
 	}
 	if strings.Contains(noProxy, "traffic_search") {
@@ -83,23 +83,26 @@ func TestRenderSystemOverrideAndFallback(t *testing.T) {
 
 func TestRenderSystemOutputLanguage(t *testing.T) {
 	t.Cleanup(func() { PromptOverride = nil; OutputLanguage = nil })
-	PromptOverride = func(string) (string, bool) { return "BODY 全程中文", true }
+	PromptOverride = func(string) (string, bool) { return "BODY Write everything in English", true }
 
-	// unset / zh → prompt unchanged (byte-identical, keeps the prompt-cache prefix)
-	for _, lang := range []func() string{nil, func() string { return "zh" }} {
+	// unset / en (the default) → prompt unchanged (exactly the body, keeps the prompt-cache prefix)
+	for _, lang := range []func() string{nil, func() string { return "en" }, func() string { return "bogus" }} {
 		OutputLanguage = lang
-		if got := renderSystem("reporter", "DEFAULT", chatVars{}); got != "BODY 全程中文" {
-			t.Fatalf("zh should leave the prompt unchanged, got %q", got)
+		if got := renderSystem("reporter", "DEFAULT", chatVars{}); got != "BODY Write everything in English" {
+			t.Fatalf("en should leave the prompt unchanged, got %q", got)
 		}
 	}
 
-	// en → directive appended after the (user-edited) body so it overrides 「全程中文」
-	OutputLanguage = func() string { return "en" }
+	// zh → Chinese directive appended after the (user-edited) body so it overrides "Write everything in English"
+	OutputLanguage = func() string { return "zh" }
 	got := renderSystem("reporter", "DEFAULT", chatVars{})
-	if !strings.HasPrefix(got, "BODY 全程中文") || !strings.HasSuffix(got, englishOutputDirective) {
-		t.Fatalf("en should append the English directive after the body, got %q", got)
+	if !strings.HasPrefix(got, "BODY Write everything in English") || !strings.HasSuffix(got, chineseOutputDirective) {
+		t.Fatalf("zh should append the Chinese directive after the body, got %q", got)
 	}
-	if !strings.Contains(plannerSystem("g", "/data", "/data"), englishOutputDirective) {
-		t.Fatal("planner system prompt is missing the English directive")
+	if !strings.HasPrefix(chineseOutputDirective, "\n\n**输出语言") {
+		t.Fatalf("Chinese directive changed: %q", chineseOutputDirective)
+	}
+	if !strings.Contains(plannerSystem("g", "/data", "/data"), chineseOutputDirective) {
+		t.Fatal("planner system prompt is missing the Chinese directive")
 	}
 }

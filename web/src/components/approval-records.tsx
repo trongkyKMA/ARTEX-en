@@ -48,10 +48,13 @@ function fmtTime(value?: string) {
   });
 }
 
+// Model verdict reasons are prefixed "[model] "; rows written before the English fork use "[模型] ".
+const MODEL_REASON_PREFIX = /^\[(?:model|模型)\]\s*/;
+
 function source(row: InterceptApprovalRow) {
   if (row.decision_source) return row.decision_source;
   if (row.rule_id) return "rule";
-  return row.reason?.startsWith("[模型]") ? "model" : "unknown";
+  return MODEL_REASON_PREFIX.test(row.reason ?? "") ? "model" : "unknown";
 }
 
 function originLabel(row: InterceptApprovalRow) {
@@ -115,7 +118,7 @@ function StatusBadge({ status }: { status: string }) {
 }
 
 function MatchCell({ row, showReason = true }: { row: InterceptApprovalRow; showReason?: boolean }) {
-  const reason = row.reason?.replace(/^\[模型\]\s*/, "");
+  const reason = row.reason?.replace(MODEL_REASON_PREFIX, "");
   return (
     <div className="flex min-w-0 flex-col gap-1">
       {source(row) === "model" ? (
@@ -455,7 +458,7 @@ export function ApprovalDetail({
             <MatchCell row={current} showReason={false} />
           </div>
           <p className="whitespace-pre-wrap break-words text-sm leading-7 [overflow-wrap:anywhere]">
-            {current.reason?.replace(/^\[模型\]\s*/, "") || tr("未记录审批理由", "No approval reason recorded")}
+            {current.reason?.replace(MODEL_REASON_PREFIX, "") || tr("未记录审批理由", "No approval reason recorded")}
           </p>
           {audit?.decision_reason ? <p className="text-sm">{audit.decision_reason}</p> : null}
           {audit?.effective_action ? (
@@ -599,7 +602,7 @@ export function ApprovalDetail({
               ) : null}
               <CodeBlock
                 label={`${initialLabel}${tr("：", ": ")}${actionLabels[audit.initial_action] ?? audit.initial_action}`}
-                text={audit.initial_reason.replace(/^\[模型\]\s*/, "")}
+                text={audit.initial_reason.replace(MODEL_REASON_PREFIX, "")}
               />
               <CodeBlock
                 label={tr("执行输出", "Execution output")}

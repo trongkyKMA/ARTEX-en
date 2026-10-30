@@ -29,7 +29,7 @@ import { UpdateCard } from "./_components/update-card";
 export default function SystemSettingsPage() {
   const [trafficCapture, setTrafficCapture] = React.useState(false);
   const [agentTrafficBinding, setAgentTrafficBinding] = React.useState(false);
-  const [outputLanguage, setOutputLanguage] = React.useState<Settings["output_language"]>("zh");
+  const [outputLanguage, setOutputLanguage] = React.useState<Settings["output_language"]>("en");
   const [webSearch, setWebSearch] = React.useState(false);
   const [backend, setBackend] = React.useState("ddgs");
   const [braveKeySet, setBraveKeySet] = React.useState(false);
@@ -48,18 +48,18 @@ export default function SystemSettingsPage() {
   const [pyInterp, setPyInterp] = React.useState("");
   const [workers, setWorkers] = React.useState("3");
   const [savingWorkers, setSavingWorkers] = React.useState(false);
-  // 操作约束注入范围(默认都开)。
+  // Operation constraint injection scope (both on by default).
   const [injectPlanner, setInjectPlanner] = React.useState(true);
   const [injectWorker, setInjectWorker] = React.useState(true);
-  // 实验功能:noa 上下文压缩(默认关)。
+  // Experimental feature: noa context compaction (off by default).
   const [noaCompaction, setNoaCompaction] = React.useState(false);
-  // 纯前端偏好：不走 /api/settings，直接读写 localStorage。
+  // Pure frontend preference: doesn't go through /api/settings, reads/writes localStorage directly.
   const sendMode = useChatSendMode();
 
   const apply = React.useCallback((s: Settings) => {
     setTrafficCapture(!!s.traffic_capture);
     setAgentTrafficBinding(!!s.agent_traffic_binding);
-    setOutputLanguage(s.output_language === "en" ? "en" : "zh");
+    setOutputLanguage(s.output_language === "zh" ? "zh" : "en");
     setWebSearch(!!s.web_search_enabled);
     setBackend(s.web_search_backend || "ddgs");
     setBraveKeySet(!!s.brave_key_set);
@@ -320,10 +320,10 @@ export default function SystemSettingsPage() {
         <p className="text-muted-foreground text-sm">{tr("全局运行时开关", "Global runtime switches")}</p>
       </div>
 
-      {/* 多列而非 grid：网络搜索卡片比其余高数倍，且高度随所选后端变化（brave/tavily
-          的 key 输入是条件渲染）。grid 会按最高的一张撑满整行、在旁边留下大片空白，
-          多列则自动按内容高度平衡填充。卡片间距靠 mb 而非 gap——多列布局下
-          column-gap 只管列间距，行间距要由子元素自己给。 */}
+      {/* Columns rather than grid: the web search card is several times taller than the rest, and its height varies with the selected backend (the brave/tavily
+          key input is conditionally rendered). A grid would stretch the whole row to the tallest card and leave large blank areas beside it,
+          while columns balance the fill by content height automatically. Card spacing uses mb instead of gap -- in a multi-column layout
+          column-gap only handles spacing between columns; row spacing must come from the children themselves. */}
       <div className="columns-1 gap-4 md:gap-6 lg:columns-2">
         <UpdateCard />
 
@@ -372,13 +372,13 @@ export default function SystemSettingsPage() {
             </CardTitle>
             <CardDescription id="output-language-description">
               {tr(
-                "Agent 撰写漏洞、事实、意图、报告、复测结论及对话回复所用的语言。选 English 时，会在所有 Agent 的系统提示末尾追加英文输出要求（覆盖提示词里的「全程中文」等语言要求），提示词正文不变。",
-                "The language Agents use for findings, facts, intents, reports, retest verdicts and chat replies. With English, an English-output instruction is appended to the end of every Agent's system prompt (overriding language instructions such as 「全程中文」 in the prompts); the prompt bodies are unchanged.",
+                "Agent 撰写漏洞、事实、意图、报告、复测结论及对话回复所用的语言。默认 English（提示词本身为英文）；选中文时，会在所有 Agent 的系统提示末尾追加中文输出要求（优先于提示词里的语言要求），提示词正文不变。",
+                "The language Agents use for findings, facts, intents, reports, retest verdicts and chat replies. The default is English (the prompts themselves are in English); with 中文, a Chinese-output instruction is appended to the end of every Agent's system prompt (taking precedence over language instructions in the prompts); the prompt bodies are unchanged.",
               )}
               <br />
               {tr(
-                "对之后启动的 Agent 运行生效；已生成的内容不会被翻译。拦截审批的模型裁决理由保持中文。",
-                "Applies to Agent runs started afterwards; existing content is not translated. Model verdict reasons in intercept approvals stay in Chinese.",
+                "对之后启动的 Agent 运行生效；已生成的内容不会被翻译。拦截审批的模型裁决理由保持英文。",
+                "Applies to Agent runs started afterwards; existing content is not translated. Model verdict reasons in intercept approvals stay in English.",
               )}
             </CardDescription>
           </CardHeader>

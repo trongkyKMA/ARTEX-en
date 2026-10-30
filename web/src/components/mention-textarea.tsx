@@ -21,8 +21,8 @@ import {
 import { isZh, tr } from "@/lib/i18n";
 import { cn } from "@/lib/utils";
 
-// 引用类型的界面显示名。mentionKinds.label 是插入消息/发给模型的中文关键字,不能翻译,
-// 这里只翻译展示文案。
+// UI display names of mention kinds. mentionKinds.label is the keyword inserted into the message and sent
+// to the model, so it must not be localized; only the displayed text is translated here.
 const MENTION_KIND_LABELS: Record<MentionKind, string> = {
   finding: tr("漏洞", "Finding"),
   asset: tr("资产", "Asset"),
@@ -39,9 +39,15 @@ function mentionKindLabel(kind: MentionKind): string {
   return MENTION_KIND_LABELS[kind] ?? kind;
 }
 
-const KIND_BY_TOKEN_LABEL = new Map<string, MentionKind>(mentionKinds.map((k) => [k.label, k.kind]));
+// Both the English token labels and the legacy Chinese ones (tokens in older messages) map to a kind.
+const KIND_BY_TOKEN_LABEL = new Map<string, MentionKind>(
+  mentionKinds.flatMap((k): [string, MentionKind][] => [
+    [k.zh, k.kind],
+    [k.label, k.kind],
+  ]),
+);
 
-// selectedMentions 的 label 以中文类型关键字开头(如「漏洞 #12 · X」),展示时换成当前语言。
+// selectedMentions labels start with the token's kind keyword (e.g. "finding #12 · X"); show it in the current UI language.
 function mentionChipLabel(label: string): string {
   const space = label.indexOf(" ");
   const head = space < 0 ? label : label.slice(0, space);
@@ -181,8 +187,8 @@ export function MentionTextarea({ value, onValueChange, onKeyDown, className, in
   }
 
   function choose(index: number) {
-    // 英文界面插入英文别名(mentionSearch 同样识别);中文界面保持中文关键字。
-    if (categories[index]) replaceActive(`@${isZh() ? categories[index].label : categories[index].alias} `, false);
+    // The English UI inserts the English alias, the Chinese UI the Chinese keyword (mentionSearch recognises both).
+    if (categories[index]) replaceActive(`@${isZh() ? categories[index].zh : categories[index].alias} `, false);
     else if (items[index]) replaceActive(`${mentionToken(items[index])} `, true);
   }
 

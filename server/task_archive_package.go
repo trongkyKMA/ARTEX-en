@@ -578,9 +578,9 @@ func writeTaskArchivePackage(path, payloadDir string, snapshot *pgdb.TaskArchive
 			return err
 		}
 		if info.Mode()&os.ModeSymlink != 0 {
-			// 归档格式端到端只支持普通文件与目录（解包端对其它类型直接报错），
-			// 无法还原符号链接。跳过而非整包失败：不读取链接目标(lstat，不越出目录树)，
-			// 也不写入 symlink 条目；链接指向树内时目标文件本身仍会被单独遍历归档。
+			// The archive format only supports regular files and directories end to end (the unpacker rejects other types outright),
+			// so symlinks cannot be restored. Skip rather than fail the whole package: do not read the link target (lstat, never leaving the tree),
+			// and do not write a symlink entry; when the link points inside the tree, the target file itself is still walked and archived separately.
 			log.Printf("[task-archive] skipped symlink (not supported in archives; other files unaffected): %s", current)
 			return nil
 		}

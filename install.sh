@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# ARTEX 安装脚本：① 全部 Docker  ② 本地编译运行
+# ARTEX install script: (1) full Docker  (2) build and run locally
 set -euo pipefail
 cd "$(cd "$(dirname "$0")" && pwd)"
 
@@ -10,7 +10,7 @@ die(){  printf '\033[31m[x]\033[0m %s\n' "$*" >&2; exit 1; }
 ask(){  local p="$1" d="${2:-}" a; read -rp "$p${d:+ [$d]}: " a; echo "${a:-$d}"; }
 rand(){ head -c 18 /dev/urandom | base64 | tr -dc 'A-Za-z0-9' | head -c 24; }
 
-# ── docker 环境检测 / 自动安装 ───────────────────
+# ── docker detection / automatic install ───────────────────
 ensure_docker(){
   if command -v docker >/dev/null 2>&1 && docker compose version >/dev/null 2>&1; then
     ok "docker and docker compose detected"; return
@@ -30,7 +30,7 @@ ensure_docker(){
   esac
 }
 
-# ── ① 全部 Docker ───────────────────────────────
+# ── (1) full Docker ───────────────────────────────
 install_docker(){
   ensure_docker
   if [ ! -f .env ]; then
@@ -52,7 +52,7 @@ install_docker(){
   info "View logs: docker compose logs -f artex"
 }
 
-# ── ② 本地编译运行 ──────────────────────────────
+# ── (2) build and run locally ──────────────────────────────
 install_local(){
   echo "Database setup:"
   echo "  1) Connect to an existing PostgreSQL"
@@ -74,7 +74,7 @@ install_local(){
       DB_SSL="$(ask 'sslmode (disable/require)' disable)" ;;
   esac
 
-  # 生成 config.json
+  # Generate config.json
   cat > config.json <<JSON
 {
   "database": {
@@ -89,11 +89,11 @@ install_local(){
 JSON
   ok "Generated config.json"
 
-  # go 环境检查
+  # Check the Go toolchain
   command -v go >/dev/null 2>&1 || die "Go not found, please install Go (>=1.26) first: https://go.dev/dl/"
   ok "Go: $(go version)"
 
-  # 内嵌前端需要 node 出静态产物
+  # Embedding the frontend needs node to produce the static build
   if command -v npm >/dev/null 2>&1; then
     info "Building frontend static assets..."
     ( cd web && npm ci && npm run build:static )

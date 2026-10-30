@@ -5,6 +5,24 @@ import (
 	"testing"
 )
 
+func TestInterceptSourceAcceptsModelPrefixes(t *testing.T) {
+	cases := []struct {
+		ruleID int64
+		reason string
+		want   string
+	}{
+		{0, "[model] looks destructive", "model"},
+		{0, "[模型] legacy reason", "model"}, // legacy Chinese prefix stays accepted
+		{7, "[model] ignored when a rule matched", "rule"},
+		{0, "plain reason", "unknown"},
+	}
+	for _, c := range cases {
+		if got := interceptSource(c.ruleID, c.reason); got != c.want {
+			t.Errorf("interceptSource(%d, %q) = %q, want %q", c.ruleID, c.reason, got, c.want)
+		}
+	}
+}
+
 func TestInterceptApprovalFilters(t *testing.T) {
 	d, err := Open(testDSN(t))
 	if err != nil {
@@ -38,7 +56,12 @@ func TestInterceptApprovalFilters(t *testing.T) {
 						ruleID = rule.ID
 					}
 					if source == "model" {
-						reason = "[模型] fixture"
+						// The scope task uses the current prefix, the other task the legacy one;
+						// both must be recognised (including rows with an empty decision_source).
+						reason = "[model] fixture"
+						if task != scope {
+							reason = "[模型] fixture"
+						}
 					}
 					id, err := d.CreateDecidedIntercept(ruleID, 0, task, "test", "Bash", []byte(`{"command":"fixture"}`), status, reason)
 					if err != nil {

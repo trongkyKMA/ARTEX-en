@@ -10,31 +10,31 @@ import { Textarea } from "@/components/ui/textarea";
 import { tr } from "@/lib/i18n";
 import type { NotificationFilter } from "@/lib/types";
 
-// asText / inputType 是本文件内的取值辅助（与控件渲染强相关），不放在 channel-fields。
+// asText / inputType are value helpers local to this file (closely tied to control rendering), not placed in channel-fields.
 import { type FieldDef, type FieldKind, SEVERITY_OPTIONS } from "./channel-fields";
 
-// asText 把任意配置值渲染成输入框可用的字符串。
-// config 来自 JSON，值可能是 string / number / boolean / array / null，
-// 这里只关心「能不能塞进文本框」，具体序列化由 buildConfig 负责。
+// asText renders any config value as a string usable in an input.
+// config comes from JSON, so values may be string / number / boolean / array / null;
+// here we only care whether it "fits in a text box"; serialization proper is buildConfig's job.
 function asText(v: unknown): string {
   if (typeof v === "string") return v;
   if (v === null || v === undefined) return "";
   return String(v);
 }
 
-// inputType 把字段类型映射到 input 的 type 属性。
+// inputType maps a field type to the input's type attribute.
 function inputType(kind: FieldKind): "text" | "password" | "number" {
   if (kind === "password") return "password";
   if (kind === "number") return "number";
   return "text";
 }
 
-// ConfigField 按字段定义渲染对应的控件。
+// ConfigField renders the control matching a field definition.
 //
-// 掩码字段的处理是这里唯一的讲究：输入框**不显示**掩码值本身，只显示一行
-// 「已保存」提示。这样界面上就只有一个规则——框里有字就是用户填的，
-// 空框就是空值。若把 "__masked__:…abc123" 塞进输入框，用户会以为那是要自己
-// 删掉的占位文本，反而更容易误清凭据。
+// Masked fields are the only subtlety here: the input does **not** show the masked value itself, only a
+// "saved" hint. That leaves a single rule on screen -- text in the box is what the user typed,
+// an empty box is an empty value. If "__masked__:…abc123" were put into the input, users would take it for placeholder text
+// they need to delete themselves, making it easier to wipe credentials by mistake.
 export function ConfigField({
   def,
   value,
@@ -48,7 +48,7 @@ export function ConfigField({
 }) {
   const id = `n-cfg-${def.key}`;
   const raw = asText(value);
-  // 后端回显的掩码值：形如 "__masked__:…abc123"，尾部是原值的可辨识片段。
+  // Masked value echoed by the backend: like "__masked__:…abc123", the tail is a recognizable fragment of the original value.
   const masked = isSecret && raw.startsWith("__masked__");
   const maskedTail = masked ? (raw.split("…")[1] ?? "") : "";
 
@@ -82,8 +82,8 @@ export function ConfigField({
     );
   }
 
-  // 控件按字段类型分派。用 if 链而不是嵌套三元，是因为这里要区分四种控件，
-  // 三层三元读起来已经要停下来数括号了。
+  // Controls are dispatched by field type. An if chain rather than nested ternaries, because four kinds of controls are distinguished here,
+  // and three levels of ternaries already make you stop and count parentheses.
   function control() {
     if (def.kind === "textarea" || def.kind === "kv") {
       return (
@@ -138,7 +138,7 @@ export function ConfigField({
   );
 }
 
-// FilterSummary 把过滤条件摘要成一行，让卡片不用展开就能看出这个渠道推什么。
+// FilterSummary summarizes the filter conditions into one line, so the card shows what this channel pushes without expanding.
 export function FilterSummary({ filter }: { filter: NotificationFilter }) {
   const parts: string[] = [];
   if (filter.min_severity) {

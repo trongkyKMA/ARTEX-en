@@ -174,10 +174,10 @@ function FindingDetailInner() {
 
       {/* Tab content */}
       <div className="flex-1 p-4 lg:p-6">
-        {/* 概览：左（摘要 + 证据）/ 右（状态区） */}
+        {/* Overview: left (summary + evidence) / right (status panel) */}
         <TabsContent value="overview" className="mt-0">
           <div className="grid gap-4 lg:grid-cols-3">
-            {/* 左栏 */}
+            {/* Left column */}
             <div className="flex flex-col gap-4 lg:col-span-2">
               <Card>
                 <CardHeader>
@@ -211,7 +211,7 @@ function FindingDetailInner() {
                 readOnly={finding.inherited}
                 onChanged={load}
               />
-              {/* 证据下方：详细报告(Markdown 渲染) */}
+              {/* Below the evidence: detailed report (rendered Markdown) */}
               <Card>
                 <CardHeader className="flex-row items-center justify-between">
                   <CardTitle className="text-sm">{tr("详细报告", "Detailed report")}</CardTitle>
@@ -239,20 +239,20 @@ function FindingDetailInner() {
               </Card>
             </div>
 
-            {/* 右栏：状态区 */}
+            {/* Right column: status panel */}
             <Card className="h-fit lg:sticky lg:top-24">
               <CardHeader>
                 <CardTitle className="text-sm">{tr("状态", "Status")}</CardTitle>
               </CardHeader>
               <CardContent className="divide-y">
-                {/* 漏洞 ID */}
+                {/* Finding ID */}
                 <FieldRow label={tr("漏洞 ID", "Finding ID")}>
                   <code className="rounded bg-muted px-1.5 py-0.5 font-mono text-xs text-muted-foreground">
                     #{finding.id}
                   </code>
                 </FieldRow>
 
-                {/* 严重等级 */}
+                {/* Severity */}
                 <FieldRow label={tr("严重等级", "Severity")}>
                   {finding.inherited ? (
                     <StatusBadge domain="severity" value={finding.severity} dot />
@@ -274,7 +274,7 @@ function FindingDetailInner() {
                   )}
                 </FieldRow>
 
-                {/* 处理状态 */}
+                {/* Handling status */}
                 <FieldRow label={tr("处理状态", "Triage status")}>
                   {finding.inherited ? (
                     <StatusBadge domain="finding" value={finding.status} dot />
@@ -296,7 +296,7 @@ function FindingDetailInner() {
                   )}
                 </FieldRow>
 
-                {/* 漏洞类型 */}
+                {/* Vulnerability type */}
                 <FieldRow label={tr("漏洞类型", "Vulnerability type")}>
                   {finding.vulnclass ? (
                     <code className="rounded bg-muted px-1.5 py-0.5 font-mono text-xs">{finding.vulnclass}</code>
@@ -305,7 +305,7 @@ function FindingDetailInner() {
                   )}
                 </FieldRow>
 
-                {/* 涉及资产 */}
+                {/* Affected asset */}
                 <FieldRow label={tr("涉及资产", "Affected assets")}>
                   {finding.assets && finding.assets.length > 0 ? (
                     <div className="flex flex-wrap justify-end gap-1">
@@ -324,7 +324,7 @@ function FindingDetailInner() {
                   )}
                 </FieldRow>
 
-                {/* 所属任务 */}
+                {/* Owning task */}
                 <FieldRow label={tr("所属任务", "Task")}>
                   {finding.task_id ? (
                     <Link
@@ -340,7 +340,7 @@ function FindingDetailInner() {
                   )}
                 </FieldRow>
 
-                {/* 发现时间 */}
+                {/* Discovered at */}
                 <FieldRow label={tr("发现时间", "Found at")}>
                   <span className="tabular-nums">{fmtTime(finding.ts)}</span>
                 </FieldRow>
@@ -349,7 +349,7 @@ function FindingDetailInner() {
           </div>
         </TabsContent>
 
-        {/* 链路图：从任务初始节点回溯到本漏洞节点的攻击链路 */}
+        {/* Chain graph: the attack chain traced back from the task's initial node to this finding's node */}
         <TabsContent value="lineage" className="mt-0">
           <FindingLineageView findingId={finding.id} />
         </TabsContent>

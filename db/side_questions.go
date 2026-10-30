@@ -283,6 +283,6 @@ AND EXISTS(SELECT 1 FROM side_question_requests r WHERE r.id=$4 AND r.session_ke
 }
 
 func (d *DB) InterruptSideRequests(ctx context.Context) error {
-	_, err := d.ExecContext(ctx, `UPDATE side_question_requests SET status='interrupted',error='服务重启，回答已中断',sequence=sequence+1 WHERE status='running'`)
+	_, err := d.ExecContext(ctx, `UPDATE side_question_requests SET status='interrupted',error='Service restarted; the answer was interrupted',sequence=sequence+1 WHERE status='running'`)
 	return err
 }

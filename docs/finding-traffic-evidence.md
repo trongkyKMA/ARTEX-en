@@ -1,7 +1,5 @@
 # Multi-traffic evidence for findings
 
-English · [中文](漏洞流量证据.md)
-
 The **Linked traffic** section of a finding's details supports multi-select across pages, a role and a note per item, ordering, and unbinding. The traffic page can also multi-select records and link them to an existing finding in one go. Finding evidence inherited by a task is read-only; to change it, go to the source task.
 
 The **Agent auto-binds traffic** option in system settings is off by default; it is read and written through `agent_traffic_binding` on `/api/settings`. Turning it on increases token usage from reviewing requests/responses, tool calls and prompts; the next agent round picks up the new setting. When it is off, the auto-bind parameters and the late-binding tool are hidden, no auto-binding guidance is injected, and new auto-bind submissions from already-running sessions are rejected. Manual binding, traffic capture, reading saved evidence and exporting are not affected.

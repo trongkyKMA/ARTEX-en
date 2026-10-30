@@ -101,12 +101,12 @@ func TestTerminalTextAbortedPreservesPartialOutput(t *testing.T) {
 	cancel(AbortPausedByUser)
 	summary, detail := terminalText(ctx, &harness.Terminal{
 		Reason: harness.ReasonAbortedStreaming,
-		Text:   "已经生成的半段回答",
+		Text:   "half of an already generated answer",
 	}, &runTrace{startedAt: time.Now()})
 	if !strings.Contains(summary, "User paused") {
 		t.Fatalf("abort summary lost cause: %q", summary)
 	}
-	if !strings.Contains(detail, "已经生成的半段回答") {
+	if !strings.Contains(detail, "half of an already generated answer") {
 		t.Fatalf("abort detail lost partial output: %s", detail)
 	}
 }

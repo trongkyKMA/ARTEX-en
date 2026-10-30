@@ -26,39 +26,40 @@ type GoalsVars struct{ EngagementDescription, DataDir, Now string }
 // elapsed time (e.g. a timed benchmark's "last N hours" window).
 func nowStr() string { return time.Now().Format("2006-01-02 15:04:05 MST") }
 
-// renderSystem returns the rendered system-prompt BODY (段 [A]) for agentKey.
+// renderSystem returns the rendered system-prompt BODY (segment [A]) for agentKey.
 // Precedence: the DB-stored template (if any) over the built-in default template
 // (def). BOTH are Go templates now — the built-in default is seeded into the DB
 // verbatim, so the two paths render identically until a user edits the prompt.
 // Rendering always runs (def used to be pre-substituted plain text; it is now a
 // {{.Var}} template like the DB one). On any render error we fall back to the
 // default template, then to the raw default string — an agent never starts with a
-// half-rendered prompt. Callers append the code-owned tail (trafficTool / 中间产物
-// 输出规约) AFTER this, so those can't be edited away via the DB body.
+// half-rendered prompt. Callers append the code-owned tail (trafficTool / the
+// intermediate-artifact output rules) AFTER this, so those can't be edited away via
+// the DB body.
 func renderSystem(agentKey, def string, vars any) string {
 	return renderBody(agentKey, def, vars) + LanguageDirective()
 }
 
 // OutputLanguage returns the language agents write user-facing text in: "en" or
 // "zh". The server wires it to the output_language setting. nil or any other value
-// keeps the built-in behaviour (the prompts themselves are written in Chinese).
+// keeps the built-in behaviour: English (the prompts themselves are written in English).
 var OutputLanguage func() string
 
 // LanguageDirective is appended to every system prompt when the output language is
-// English. It comes after the (possibly user-edited) prompt body so it overrides
-// language instructions in it, e.g. the reporter's 「全程中文」. Empty for zh, so
-// the zh prompt — and its prompt-cache prefix — is byte-identical to before.
+// Chinese. It comes after the (possibly user-edited) prompt body so it overrides
+// language instructions in it, e.g. the reporter's "Write everything in English".
+// Empty for en (the default), so the en prompt — and its prompt-cache prefix — is
+// exactly the prompt body.
 func LanguageDirective() string {
-	if OutputLanguage == nil || OutputLanguage() != "en" {
+	if OutputLanguage == nil || OutputLanguage() != "zh" {
 		return ""
 	}
-	return englishOutputDirective
+	return chineseOutputDirective
 }
 
-const englishOutputDirective = "\n\n**Output language (system setting; overrides any language instruction above)**: " +
-	"write all of your output in English — replies to the user, finding titles, descriptions, impact, remediation and reports, " +
-	"facts, hints, intent summaries, todo items, goal text and retest verdict summaries. " +
-	"Keep tool names, parameter names, enum values, code, commands, file paths, HTTP requests/responses and quoted target content verbatim."
+// chineseOutputDirective is intentionally written in Chinese: it switches agent output
+// to Simplified Chinese when the output_language setting is "zh".
+const chineseOutputDirective = "\n\n**输出语言（系统设置，优先于上文的任何语言要求）**：全部输出使用简体中文——包括回复、漏洞标题/描述/影响/修复建议/报告、事实、提示、意图摘要、待办与目标文本、复测结论摘要。工具名、参数名、枚举值、代码、命令、文件路径、HTTP 请求/响应和引用的目标原文保持原样。"
 
 func renderBody(agentKey, def string, vars any) string {
 	tmpl := def

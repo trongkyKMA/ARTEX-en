@@ -10,7 +10,7 @@ import { MOCK } from "@/lib/mock/enabled";
 import type { LogLine } from "@/lib/types";
 import { cn } from "@/lib/utils";
 
-// Mock demo：无后端 SSE，塞几行示例日志。
+// Mock demo: no backend SSE, so insert a few sample log lines.
 const MOCK_LOGS: LogLine[] = [
   {
     seq: 1,
