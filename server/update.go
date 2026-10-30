@@ -225,6 +225,12 @@ func (s *Server) updateCheck(w http.ResponseWriter, r *http.Request) {
 		"rolled_back": boot.RolledBack,
 	}
 
+	if selfupdate.DisabledReason != "" {
+		out["disabled"] = selfupdate.DisabledReason
+		writeJSON(w, 200, out)
+		return
+	}
+
 	// The top-bar hint uses the cache (default); when the user clicks "Check for updates" it passes force=1 to force a fresh fetch.
 	force := r.URL.Query().Get("force") != ""
 	client := selfupdate.NewClient(s.m.GlobalProxy())
@@ -268,6 +274,10 @@ func (s *Server) updateCheck(w http.ResponseWriter, r *http.Request) {
 // Returns 202 immediately; the actual work runs on a background goroutine: downloading the whole package may take minutes,
 // and hanging it on the request would get it cut off by a reverse-proxy timeout. Progress goes through /api/update/stream.
 func (s *Server) updateApply(w http.ResponseWriter, r *http.Request) {
+	if selfupdate.DisabledReason != "" {
+		writeErr(w, 403, selfupdate.DisabledReason)
+		return
+	}
 	current := BuildVersion
 
 	// Use the cache: ensures that what gets installed is exactly the version the user saw and confirmed in the UI.

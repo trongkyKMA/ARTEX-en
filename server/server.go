@@ -225,6 +225,7 @@ func New(ctx context.Context, m *Manager, skillDir string, dataDir string, keyDi
 		if err := s.seedFindingRetester(); err != nil {
 			log.Printf("[retester] seed: %v", err)
 		}
+		s.localizeLegacyChineseSeeds() // English fork: rewrite prompts/agents seeded in Chinese by an upstream build
 		go s.evidenceStore().RunGC(s.ctx)
 		s.seedPythonInterpreter()     // custom script tools: detect the python interpreter at boot and store it (only when empty)
 		go newScheduler(s).Run(s.ctx) // P3 trigger scheduling (timer/finding/goal events), custom agents only

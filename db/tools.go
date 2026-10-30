@@ -24,10 +24,12 @@ type Tool struct {
 
 const toolCols = `key, system, description, schema, agents, enabled, kind, exec, deferred`
 
-// SeedTool inserts a built-in tool's code-defined defaults ONCE. ON CONFLICT DO
-// NOTHING: an existing row (possibly edited in the UI) is never overwritten on
-// startup — that's what keeps page edits from being wiped every restart. Use
-// UpsertToolForce for an explicit "reset to code default".
+// SeedTool inserts a built-in tool's code-defined defaults ONCE. An existing row
+// (possibly edited in the UI) is never overwritten on startup — that's what keeps
+// page edits from being wiped every restart. Use UpsertToolForce for an explicit
+// "reset to code default". English fork exception: a system row whose description
+// or schema still holds Chinese (seeded by an upstream build) gets the English
+// description and schema; bindings and the enabled flag are kept.
 func (d *DB) SeedTool(key, desc string, schema, agents json.RawMessage) error {
 	if len(schema) == 0 {
 		schema = json.RawMessage("{}")
@@ -38,7 +40,10 @@ func (d *DB) SeedTool(key, desc string, schema, agents json.RawMessage) error {
 	_, err := d.Exec(`
 INSERT INTO tools(key, system, description, schema, agents, enabled)
 VALUES ($1, true, $2, $3, $4, true)
-ON CONFLICT (key) DO NOTHING`, key, desc, schema, agents)
+ON CONFLICT (key) DO UPDATE SET description = EXCLUDED.description, schema = EXCLUDED.schema
+WHERE tools.system
+  AND (tools.description ~ $5 OR tools.schema::text ~ $5)
+  AND NOT (EXCLUDED.description ~ $5 OR EXCLUDED.schema::text ~ $5)`, key, desc, schema, agents, hanPattern)
 	return err
 }
 

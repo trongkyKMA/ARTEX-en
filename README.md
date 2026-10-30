@@ -4,14 +4,15 @@
 
 AI autonomous penetration testing system. Multi-agent LLM, Go backend, Next.js frontend.
 
-[![Release](https://img.shields.io/github/v/release/trhhubsd/ARTEX)](https://github.com/trhhubsd/ARTEX/releases)
+> English fork of [trhhubsd/ARTEX](https://github.com/trhhubsd/ARTEX), built and updated from this repository.
+
 [![License: AGPL-3.0](https://img.shields.io/badge/license-AGPL--3.0-blue)](LICENSE)
 
 </div>
 
 ARTEX is a multi-agent system for autonomous penetration testing in an isolated lab: a planner and workers share an asset graph and an exploration graph, with human-in-the-loop approval and full traffic recording. It ships as one binary or a Docker Compose stack.
 
-The web UI is in English and still offers a **中文** (Chinese) option — switch with the language button in the top bar (or on the login page). The choice is stored in the browser; by default the UI follows the browser language.
+The web UI is in English and still offers a **中文** (Chinese) option — switch with the language button in the top bar (or on the login page). The choice is stored in the browser; the default is English, whatever the browser language.
 
 Agent output (replies, findings, reports, notes) is in English by default. The output language is a system setting: change it under **System settings** if you want the agents to write in Chinese instead.
 
@@ -73,14 +74,14 @@ Assets can be synced directly from [ScopeSentry](https://github.com/Autumn-27/Sc
 ### Option 1: one-step install script (recommended)
 
 ```bash
-git clone https://github.com/trhhubsd/ARTEX
-cd ARTEX
+git clone https://github.com/trongkyKMA/ARTEX-en
+cd ARTEX-en
 ./install.sh
 ```
 
 The script checks for Docker (and installs it if missing), then lets you choose **① everything in Docker** or **② build and run locally**:
 
-- **① Everything in Docker**: enter a Postgres password (press Enter for a random one) → `.env` is written → `docker compose up -d`.
+- **① Everything in Docker**: enter a Postgres password (press Enter for a random one) → `.env` is written → the image is built from this checkout → `docker compose up -d`.
 - **② Run locally**: choose a database (connect to an existing one / start one in Docker) → `config.json` is generated → `go` builds a single binary with the UI embedded → it starts.
 
 When it's done, open **http://localhost:8787** (the first visit goes to `/setup` to set the admin password).
@@ -88,12 +89,16 @@ When it's done, open **http://localhost:8787** (the first visit goes to `/setup`
 ### Option 2: Docker Compose (recommended)
 
 ```bash
-git clone https://github.com/trhhubsd/ARTEX
-cd ARTEX
+git clone https://github.com/trongkyKMA/ARTEX-en
+cd ARTEX-en
 cp .env.example .env          # set POSTGRES_PASSWORD, optionally ANTHROPIC_API_KEY
-docker compose up -d          # pulls the tomicdd/artex image + postgres
+docker compose up -d --build  # builds the artex-en:local image from this checkout + starts postgres
 # → http://localhost:8787
 ```
+
+> **Do not use the published `tomicdd/artex` image** (or an old compose file that pulls it): that is the upstream **Chinese** build. This fork's compose file builds the image from source (`pull_policy: build`), so `docker compose up` always runs the code you checked out. The first build takes several minutes.
+>
+> **Moving from the upstream image?** Keep your database: after switching to this compose file and starting it, ARTEX rewrites the built-in prompts, tool descriptions, intercept rules and preset agents that are still in Chinese to the English defaults (replaced prompts stay in each agent's version history). Rows you edited in English are not touched; your own data — tasks, findings, assets, conversations — is not translated.
 
 The image includes common tools (ripgrep/curl/vim/npm/nmap…); `./skills` and `./data` are bind-mounted so they persist.
 
@@ -114,7 +119,7 @@ CGO_ENABLED=0 go build -tags embedui -o artex ./cmd/artex
 ./start.sh
 ```
 
-### Option 5: build cross-platform release archives
+### Option 4: build cross-platform release archives
 
 `build.sh` builds and embeds the frontend first, strips debug info with the Go linker, and packs the release files as zip archives. Release mode produces zips for Linux amd64/arm64, macOS amd64/arm64 and Windows amd64 by default:
 
@@ -136,52 +141,30 @@ ARTEX_TARGETS=linux/amd64,windows/amd64 ./build.sh --release
 
 > An upgrade replaces the program, not the data: the Postgres volume `pgdata`, `./data` (jwt.key / SQLite, etc.) and `./skills` are kept. **No manual database migration is needed** — on every start `artex` re-runs `schema.sql` idempotently (including `ADD COLUMN` / `CREATE INDEX IF NOT EXISTS`), so "restart = migrate". Backing up `./data` and the database before upgrading is still recommended.
 
-### Option 1: one-click update in the UI (recommended)
+> **One-click update in the UI is turned off in this fork.** It downloads releases of the upstream repository, which are the Chinese build and would silently replace this one. The **Version & updates** card on the settings page says so; update with one of the options below. Upstream release zips are likewise the Chinese build — don't use them to update this fork.
 
-On the **Settings** page (sidebar "Settings" → `/system/settings`), the **Version & updates** card lets you check for and install a new version without logging in to the server.
-
-After you click "Update": the release package for the current platform is downloaded → checked against the release's `SHA256SUMS` → the new binary is smoke-tested with `-h` → staged as `artex.new` → the program exits and `start.sh` / `start.bat` restarts it and swaps the binary in. The page waits for the new version to come up and then refreshes.
-
-- **A failed update never leaves a broken program**: if verification or the smoke test fails, the staged file is discarded and the current version keeps running; if the swapped-in version fails to start 3 times in a row, it is rolled back to `artex.old` automatically (the failed one is kept as `artex.failed` for debugging).
-- **Roll back at any time**: the previous version is kept as `artex.old`, and the card has a "Roll back to previous version" button. Note that the database schema is not rolled back.
-- **Updating interrupts running tasks** — an update is a restart, so do it when idle.
-- **Development builds can't be updated**: updating is disabled when the version is `dev` or a `git describe` string with a suffix, so a release never overwrites a locally built debug binary.
-- **In Docker only the program is replaced, not the image**: tools in the image such as playwright / nmap are not upgraded, and recreating the container with `docker compose up -d` reverts to the version shipped in the image. To upgrade the image as well, use `docker compose pull artex && docker compose up -d artex`.
-- If GitHub is only reachable through a proxy, configure the **global proxy** on the same page; the update uses it. Updates are only downloaded from GitHub domains and HTTPS is enforced.
-
-### Option 2: update script
+### Option 1: update script (recommended)
 
 ```bash
-cd ARTEX
+cd ARTEX-en
 ./update.sh
 ```
 
 The script optionally runs `git pull` first, then lets you choose **① Docker update** or **② local build update** (matching `install.sh`):
 
-- **① Docker**: choose an image tag (press Enter to keep `ARTEX_TAG` from `.env`, default `latest`) → `docker compose pull` → `docker compose up -d` (restarting with the new image migrates automatically).
+- **① Docker**: rebuilds the image from the current code → `docker compose up -d artex` (restarting with the new image migrates automatically).
 - **② Local**: rebuilds the static frontend → rebuilds `./artex` (restart the process to apply).
 
-### Option 3: Docker Compose (manual)
+### Option 2: Docker Compose (manual)
 
 ```bash
-cd ARTEX
-git pull                       # update compose file / scripts (optional)
-# pin a version: set ARTEX_TAG=v0.2.0 in .env; otherwise latest is used
-docker compose pull artex
-docker compose up -d artex     # restart with the new image → schema migrates automatically
-docker image prune -f          # remove old images (optional)
+cd ARTEX-en
+git pull                         # get the new code
+docker compose up -d --build artex   # rebuild the image and restart → schema migrates automatically
+docker image prune -f            # remove old images (optional)
 ```
 
-### Option 4: prebuilt binaries (Releases)
-
-Download the new zip from [Releases](https://github.com/trhhubsd/ARTEX/releases), stop the old process, overwrite `artex` and `skills/` (keep your `config.json` and `data/`), and restart:
-
-```bash
-cp -r <extracted-dir>/skills ./ && cp <extracted-dir>/artex ./
-./start.sh
-```
-
-### Option 5: build from source
+### Option 3: build from source
 
 ```bash
 git pull

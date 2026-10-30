@@ -14,6 +14,10 @@ import (
 // who can change the config a remote code execution channel, a hole a penetration testing platform cannot afford.
 const Repo = "Autumn-27/artex"
 
+// DisabledReason, when non-empty, turns one-click update off. The English fork sets it: Repo's releases are
+// the upstream Chinese build, so installing one would silently replace the fork.
+const DisabledReason = "One-click update is turned off in the English fork: the upstream release would replace it with the Chinese build. To update, run git pull and then ./update.sh on the server."
+
 // latestURL is GitHub's "latest release" endpoint. It automatically skips prereleases and drafts.
 const latestURL = "https://api.github.com/repos/" + Repo + "/releases/latest"
 

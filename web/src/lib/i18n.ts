@@ -22,9 +22,10 @@ function detectLocale(): Locale {
     const stored = window.localStorage.getItem(STORAGE_KEY);
     if (stored === "en" || stored === "zh") return stored;
   } catch {
-    // localStorage blocked (private mode etc.) — fall through to the browser language.
+    // localStorage blocked (private mode etc.) — fall through to the default.
   }
-  return window.navigator.language?.toLowerCase().startsWith("zh") ? "zh" : "en";
+  // English fork: English unless Chinese was picked explicitly, whatever the browser language.
+  return "en";
 }
 
 const current: Locale = detectLocale();

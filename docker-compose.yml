@@ -15,7 +15,14 @@ services:
     restart: unless-stopped
 
   artex:
-    image: tomicdd/artex:${ARTEX_TAG:-latest}
+    # Built from this checkout: the published tomicdd/artex image is the upstream Chinese build.
+    # pull_policy: build makes every `docker compose up` rebuild from the current code (cached layers make it quick).
+    build:
+      context: .
+      args:
+        ARTEX_BUILD_VERSION: ${ARTEX_BUILD_VERSION:-dev}
+    image: artex-en:local
+    pull_policy: build
     depends_on:
       postgres:
         condition: service_healthy

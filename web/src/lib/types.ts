@@ -1576,6 +1576,8 @@ export interface UpdateCheck {
   /** Outcome of the self-update bootstrap at this startup (swap failed / rolled back, etc.); empty when nothing happened. */
   boot_notice?: string;
   rolled_back?: boolean;
+  /** Set when one-click update is turned off in this build (the English fork); the fields below are then absent. */
+  disabled?: string;
   /** Reason when querying GitHub failed; in that case none of the fields below are present. */
   error?: string;
   latest?: string;

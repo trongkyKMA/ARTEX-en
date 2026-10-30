@@ -55,7 +55,8 @@ export function UpdateCard() {
       .then((r) => {
         setInfo(r);
         if (!quiet) {
-          if (r.error) toast.error(tr("检查更新失败：", "Update check failed: ") + r.error);
+          if (r.disabled) toast.info(r.disabled);
+          else if (r.error) toast.error(tr("检查更新失败：", "Update check failed: ") + r.error);
           else if (r.has_update) toast.success(tr(`发现新版本 ${r.latest}`, `New version available: ${r.latest}`));
           else if (r.comparable) toast.success(tr("当前已是最新版本", "You are on the latest version"));
         }
@@ -252,6 +253,13 @@ export function UpdateCard() {
           <p className="flex items-start gap-2 rounded-md border border-amber-500/40 bg-amber-500/10 p-2 text-xs text-amber-700 dark:text-amber-400">
             <TriangleAlertIcon className="mt-0.5 size-3.5 shrink-0" />
             {info.boot_notice}
+          </p>
+        )}
+
+        {info?.disabled && (
+          <p className="flex items-start gap-2 rounded-md border border-amber-500/40 bg-amber-500/10 p-2 text-xs text-amber-700 dark:text-amber-400">
+            <TriangleAlertIcon className="mt-0.5 size-3.5 shrink-0" />
+            {info.disabled}
           </p>
         )}
 

@@ -430,7 +430,7 @@ function ToolBlock({
       if (!live) return;
       setDetail(
         segs
-          .map((x, i) => `【${x.label}】\n${x.isCommand ? toolInputText(toolName, parts[i]) : parts[i]}`)
+          .map((x, i) => `[${x.label}]\n${x.isCommand ? toolInputText(toolName, parts[i]) : parts[i]}`)
           .join("\n\n"),
       );
       loadedKey.current = detailKey;
@@ -541,7 +541,7 @@ function MessageBlock({
       ),
     ).then((parts) => {
       if (!live) return;
-      setDetail(group.steps.map((s, i) => `【${kindLabel(s.kind)}】\n${parts[i]}`).join("\n\n"));
+      setDetail(group.steps.map((s, i) => `[${kindLabel(s.kind)}]\n${parts[i]}`).join("\n\n"));
       loadedKey.current = detailKey;
     });
     return () => {

@@ -1294,7 +1294,7 @@ export default function FindingsPage() {
                   {tr("CSV 表格（.csv）", "CSV spreadsheet (.csv)")}
                 </label>
                 <label htmlFor="export-format-json" className="flex items-center gap-2 text-sm">
-                  <RadioGroupItem id="export-format-json" value="json" /> JSON（.json）
+                  <RadioGroupItem id="export-format-json" value="json" /> JSON (.json)
                 </label>
               </RadioGroup>
             </div>

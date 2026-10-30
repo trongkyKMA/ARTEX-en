@@ -1459,7 +1459,7 @@ export default function ChatPage() {
                   <SelectItem value="all">{tr("全部 Agent", "All Agents")}</SelectItem>
                   {agentFilterOptions.map((agent) => (
                     <SelectItem key={agent.key} value={`agent:${agent.key}`}>
-                      {agent.name}（{agent.count}）
+                      {agent.name} ({agent.count})
                     </SelectItem>
                   ))}
                 </SelectGroup>

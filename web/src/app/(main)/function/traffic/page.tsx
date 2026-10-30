@@ -839,7 +839,7 @@ export default function TrafficPage() {
                   <span className="font-semibold tabular-nums">{selectedHosts.length}</span>
                   {tr(" 个目标（", " targets (")}
                   <span className="font-mono">
-                    {selectedHosts.slice(0, 3).join("、")}
+                    {selectedHosts.slice(0, 3).join(tr("、", ", "))}
                     {selectedHosts.length > 3 ? "…" : ""}
                   </span>
                   {tr("）的所有流量记录（含请求/响应原文），此操作不可撤销。", "). This cannot be undone.")}

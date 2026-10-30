@@ -689,6 +689,12 @@ func (s *Server) reseedWorkerPrompt() {
 // said "read only when automatic binding is enabled", then under the default (off) configuration the reporter would not pass evidence_version,
 // SetFindingReportVersionByNodeID would write -1 with the legacy semantics, and the finding details and Markdown export
 // would permanently show "evidence changed, report needs update", with no entry point in the UI to clear it.
+// Name and description of the preset reporter agent.
+const (
+	reporterAgentName        = "Report Writer"
+	reporterAgentDescription = "Detailed finding report writing: triggered automatically when a finding is discovered; looks up the evidence and execution, then writes a Markdown report and saves it back."
+)
+
 const reporterToolCallMessage = "A finding was just registered by report_finding above. Read finding_id (the independent finding record ID) and finding_node_id (the exploration node ID) from the returned JSON, " +
 	"first use get_finding_traffic(finding_id) to read the current evidence list and its version (an empty list is normal; write the report as usual); " +
 	"if the runtime guidance enables automatic binding, verify and link this finding's traffic before reading. Use finding_node_id for node details. " +
@@ -742,8 +748,7 @@ func (s *Server) seedReporterAgent() {
 	if exist, _ := s.m.pg.GetAgentByKey("reporter"); exist != nil {
 		return // key already taken (created manually by the user): do not overwrite
 	}
-	a, err := s.m.pg.CreateAgent("reporter", "Report Writer",
-		"Detailed finding report writing: triggered automatically when a finding is discovered; looks up the evidence and execution, then writes a Markdown report and saves it back.")
+	a, err := s.m.pg.CreateAgent("reporter", reporterAgentName, reporterAgentDescription)
 	if err != nil {
 		log.Printf("[reporter] failed to create agent: %v", err)
 		return

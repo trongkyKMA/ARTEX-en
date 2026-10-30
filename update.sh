@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# ARTEX update script: (1) Docker update (pull the new image and recreate)  (2) local build update (rebuild the binary)
+# ARTEX update script: (1) Docker update (rebuild the image and recreate)  (2) local build update (rebuild the binary)
 # Counterpart of install.sh: install handles the first deployment, update upgrades to a new version.
 # No manual DB migration is needed: artex idempotently re-runs schema.sql on every start (with ADD COLUMN/CREATE
 # INDEX IF NOT EXISTS), so "restart = migrate". Data (the pgdata volume, ./data, ./skills) is not affected.
@@ -27,23 +27,14 @@ update_docker(){
     || die "docker / docker compose not found, please deploy with ./install.sh first"
   [ -f .env ] || die ".env not found, please run ./install.sh first to complete the initial deployment"
 
-  # Optional: upgrade to a specific version tag (empty keeps ARTEX_TAG from .env, default latest)
-  local tag; tag="$(ask 'Target image tag (Enter keeps .env / latest)' '')"
-  if [ -n "$tag" ]; then
-    if grep -q '^ARTEX_TAG=' .env; then
-      sed -i.bak "s|^ARTEX_TAG=.*|ARTEX_TAG=${tag}|" .env && rm -f .env.bak
-    else
-      printf '\nARTEX_TAG=%s\n' "$tag" >> .env
-    fi
-    ok "ARTEX_TAG set to ${tag}"
-  fi
-
+  # The English fork builds its image from this checkout (the published tomicdd/artex image is the upstream
+  # Chinese build), so updating = rebuild from the code just pulled.
   # Only touch artex: postgres is pinned to 16-alpine and does not need upgrading (pulling it just wastes bandwidth,
   # and a major version change carries compatibility risk). artex declares depends_on postgres, so `up` with the service name
   # starts pg automatically if it is not running, and leaves an already running one as is (not recreated).
-  info "Pulling new image (artex only)..."
-  docker compose pull artex
-  info "Rebuilding and starting (artex migrates the schema automatically on restart)..."
+  info "Rebuilding the artex image from the current code..."
+  docker compose build artex
+  info "Restarting (artex migrates the schema automatically on restart)..."
   docker compose up -d artex
   ok "Update complete -> http://localhost:8787"
   info "View logs: docker compose logs -f artex"
@@ -72,7 +63,7 @@ update_local(){
 
 echo "=============================="
 echo "  ARTEX Update"
-echo "  1) Docker update (pull new image and rebuild)"
+echo "  1) Docker update (rebuild the image from the code)"
 echo "  2) Local update (rebuild with go)"
 echo "=============================="
 case "$(ask 'Choose' 1)" in

@@ -189,6 +189,12 @@ func (s *Server) findingRetestTools() []actool.CoreTool {
 	}
 }
 
+// Name and description of the preset finding-retest agent.
+const (
+	retesterAgentName        = "Finding retest"
+	retesterAgentDescription = "Started manually from the finding details; reads the original evidence and saves an independent retest conclusion."
+)
+
 // Seed the editable agent atomically, without an automatic discovery trigger.
 // Once seeded, user edits/deletion survive restarts; a pre-existing key is kept.
 func (s *Server) seedFindingRetester() error {
@@ -219,8 +225,8 @@ func (s *Server) seedFindingRetester() error {
 	}
 	var id int64
 	err = tx.QueryRow(`INSERT INTO agents(key,name,description,role,builtin,enabled)
-	VALUES ($1,'Finding retest','Started manually from the finding details; reads the original evidence and saves an independent retest conclusion.','assistant',false,true)
-	ON CONFLICT (key) DO NOTHING RETURNING id`, db.FindingRetestAgentKey).Scan(&id)
+	VALUES ($1,$2,$3,'assistant',false,true)
+	ON CONFLICT (key) DO NOTHING RETURNING id`, db.FindingRetestAgentKey, retesterAgentName, retesterAgentDescription).Scan(&id)
 	if err != nil && !errors.Is(err, sql.ErrNoRows) {
 		return err
 	}

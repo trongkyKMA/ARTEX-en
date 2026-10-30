@@ -684,7 +684,7 @@ export default function TasksPage() {
           total.files_deleted = total.files_deleted || r.files_deleted;
           total.findings_deleted += r.findings_deleted;
           total.llm_records_deleted += r.llm_records_deleted;
-          if (r.cleanup_warning) warnings.push(`#${id}：${r.cleanup_warning}`);
+          if (r.cleanup_warning) warnings.push(`#${id}: ${r.cleanup_warning}`);
           deleted.push(id);
         } catch (e) {
           failed.push({ id, message: (e as Error).message });

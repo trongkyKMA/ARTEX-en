@@ -282,7 +282,22 @@ ON CONFLICT (name) DO NOTHING`,
 	if err := d.seedDefaultAssetInterceptRules(); err != nil {
 		return fmt.Errorf("seed asset intercept rules: %w", err)
 	}
+	if err := d.localizeBuiltinRuleSeeds(); err != nil {
+		return fmt.Errorf("localize built-in rules: %w", err)
+	}
 	return nil
+}
+
+// defaultAssetInterceptRules is the built-in asset blocklist (package level for localizeBuiltinRuleSeeds).
+var defaultAssetInterceptRules = []struct {
+	kind    string
+	pattern string
+	note    string
+}{
+	{"fuzzy_domain", ".gov", "[builtin] Government sites (.gov)"},
+	{"fuzzy_domain", ".gov.cn", "[builtin] Government sites (.gov.cn)"},
+	{"fuzzy_domain", ".edu", "[builtin] Education sites (.edu)"},
+	{"fuzzy_domain", ".edu.cn", "[builtin] Education sites (.edu.cn)"},
 }
 
 // seedDefaultAssetInterceptRules inserts the built-in asset blocklist (fuzzy
@@ -293,17 +308,7 @@ func (d *DB) seedDefaultAssetInterceptRules() error {
 	if v, _, _ := d.GetSetting("asset_intercept_default_rules_v1"); v == "done" {
 		return nil
 	}
-	rules := []struct {
-		kind    string
-		pattern string
-		note    string
-	}{
-		{"fuzzy_domain", ".gov", "[builtin] Government sites (.gov)"},
-		{"fuzzy_domain", ".gov.cn", "[builtin] Government sites (.gov.cn)"},
-		{"fuzzy_domain", ".edu", "[builtin] Education sites (.edu)"},
-		{"fuzzy_domain", ".edu.cn", "[builtin] Education sites (.edu.cn)"},
-	}
-	for _, r := range rules {
+	for _, r := range defaultAssetInterceptRules {
 		if _, err := d.Exec(`
 INSERT INTO asset_intercept_rules(enabled, kind, pattern, note, builtin)
 VALUES (true, $1, $2, $3, true)
@@ -342,6 +347,182 @@ ON CONFLICT (agent_id, skill_name) DO NOTHING`, key, skillName); err != nil {
 	return nil
 }
 
+// interceptRuleV1 / defaultInterceptRulesV1 are the v1 built-in intercept rules. They live at
+// package level so localizeBuiltinRuleSeeds can map rows seeded by an upstream (Chinese)
+// build back to their English text by pattern.
+type interceptRuleV1 struct {
+	name     string
+	target   string // tool_name | tool_input
+	typ      string // string | regex
+	pattern  string
+	action   string
+	message  string
+	priority int
+}
+
+var defaultInterceptRulesV1 = []interceptRuleV1{
+	// ── Destructive system commands (priority 100) ──────────────────────────────────
+	{
+		name:     "[builtin] Recursive force delete rm -rf",
+		target:   "tool_input",
+		typ:      "regex",
+		pattern:  `(?i)\brm\b.{0,80}(?:-[a-z]*r[a-z]*f[a-z]*|-[a-z]*f[a-z]*r[a-z]*|--recursive|--no-preserve-root)`,
+		action:   "deny",
+		message:  "Recursive force deletion (rm -rf / rm --recursive) is forbidden; it may permanently damage the system or the target environment",
+		priority: 100,
+	},
+	{
+		name:     "[builtin] Delete critical system directories",
+		target:   "tool_input",
+		typ:      "regex",
+		pattern:  `\brm\b[^"'\n]{0,60}["'\s](/|/etc|/bin|/usr|/boot|/var|/lib|/sys|/proc|/dev|/sbin|/root)`,
+		action:   "deny",
+		message:  "Deleting critical system paths is forbidden",
+		priority: 100,
+	},
+	{
+		name:     "[builtin] Disk format mkfs",
+		target:   "tool_input",
+		typ:      "regex",
+		pattern:  `\bmkfs\b`,
+		action:   "deny",
+		message:  "Formatting disks (mkfs) is forbidden",
+		priority: 100,
+	},
+	{
+		name:     "[builtin] Overwrite disk device dd",
+		target:   "tool_input",
+		typ:      "regex",
+		pattern:  `\bdd\b[^|\n]{0,100}\bof=\s*/dev/[a-zA-Z]`,
+		action:   "deny",
+		message:  "Overwriting disk devices with dd is forbidden",
+		priority: 100,
+	},
+	{
+		name:     "[builtin] Fork bomb",
+		target:   "tool_input",
+		typ:      "regex",
+		pattern:  `:\(\)\s*\{[^}]*:\|:`,
+		action:   "deny",
+		message:  "Running a fork bomb is forbidden",
+		priority: 100,
+	},
+	{
+		name:     "[builtin] Shutdown / reboot",
+		target:   "tool_input",
+		typ:      "regex",
+		pattern:  `\b(?:shutdown|reboot|halt|poweroff|init\s+[06])\b`,
+		action:   "deny",
+		message:  "Running shutdown or reboot commands is forbidden",
+		priority: 100,
+	},
+	{
+		name:     "[builtin] Kill all processes",
+		target:   "tool_input",
+		typ:      "regex",
+		pattern:  `\bkill\s+-9\s+-1\b|\bkillall\s+-9\b`,
+		action:   "deny",
+		message:  "kill -9 -1 or killall -9 (killing all processes) is forbidden",
+		priority: 100,
+	},
+	{
+		name:     "[builtin] Disk wipe shred / wipe",
+		target:   "tool_input",
+		typ:      "regex",
+		pattern:  `\b(?:shred|wipe)\b[^|\n]{0,80}/dev/[a-zA-Z]`,
+		action:   "deny",
+		message:  "Wiping disk devices with shred/wipe is forbidden",
+		priority: 100,
+	},
+	{
+		name:     "[builtin] Flush firewall rules",
+		target:   "tool_input",
+		typ:      "regex",
+		pattern:  `\biptables\s+(?:-F|--flush)\b|\bnft\s+flush\s+ruleset\b`,
+		action:   "deny",
+		message:  "Flushing firewall rules (iptables -F / nft flush) is forbidden",
+		priority: 100,
+	},
+	// ── Destructive database operations (priority 90) ─────────────────────────────────
+	{
+		name:     "[builtin] SQL DROP DATABASE / TABLE / SCHEMA",
+		target:   "tool_input",
+		typ:      "regex",
+		pattern:  `(?i)\bDROP\s+(?:DATABASE|TABLE|SCHEMA|INDEX|VIEW|TABLESPACE|USER|ROLE)\b`,
+		action:   "deny",
+		message:  "DROP operations are forbidden; they may irreversibly destroy database objects",
+		priority: 90,
+	},
+	{
+		name:     "[builtin] SQL TRUNCATE",
+		target:   "tool_input",
+		typ:      "regex",
+		pattern:  `(?i)\bTRUNCATE\s+(?:TABLE\s+)?\w`,
+		action:   "deny",
+		message:  "TRUNCATE is forbidden; it may wipe all data in a table",
+		priority: 90,
+	},
+	{
+		name:     "[builtin] MongoDB drop / dropDatabase",
+		target:   "tool_input",
+		typ:      "regex",
+		pattern:  `(?i)\.(?:dropDatabase|dropCollection|drop)\s*\(`,
+		action:   "deny",
+		message:  "MongoDB drop operations are forbidden",
+		priority: 90,
+	},
+	{
+		name:     "[builtin] Redis FLUSHALL / FLUSHDB",
+		target:   "tool_input",
+		typ:      "regex",
+		pattern:  `(?i)\b(?:FLUSHALL|FLUSHDB)\b`,
+		action:   "deny",
+		message:  "Redis FLUSHALL / FLUSHDB is forbidden; it may wipe all cached data",
+		priority: 90,
+	},
+	// ── Destructive HTTP requests (priority 80) ──────────────────────────────────
+	// Three common ways an Agent sends a DELETE request:
+	//   1. curl -X DELETE / --request DELETE (run directly by the Bash tool or written into a script)
+	//   2. the .delete() method of a Python HTTP client
+	//   3. method: 'DELETE' / method="DELETE" in JS/generic scripts
+	{
+		name:     "[builtin] curl / wget sending DELETE requests",
+		target:   "tool_input",
+		typ:      "regex",
+		pattern:  `(?i)\bcurl\b[^|\n&;"]{0,300}(?:-X\s*DELETE|--request\s+DELETE|-XDELETE)|\bwget\b[^|\n&;"]{0,300}--method[=\s]+DELETE`,
+		action:   "deny",
+		message:  "Sending HTTP DELETE requests via curl/wget is forbidden; it may delete data on the target system",
+		priority: 80,
+	},
+	{
+		name:     "[builtin] Python HTTP client DELETE (requests/httpx/aiohttp)",
+		target:   "tool_input",
+		typ:      "regex",
+		pattern:  `(?i)\b(?:requests|httpx|aiohttp|urllib\.request)\.delete\s*\(|session\.delete\s*\(|client\.delete\s*\(`,
+		action:   "deny",
+		message:  "Sending DELETE requests with a Python HTTP client is forbidden",
+		priority: 80,
+	},
+	{
+		name:     "[builtin] HTTP DELETE method declared in scripts (JS/generic)",
+		target:   "tool_input",
+		typ:      "regex",
+		pattern:  `(?i)axios\.delete\s*\(|method\s*[:=]\s*['"]DELETE['"]`,
+		action:   "deny",
+		message:  "Declaring and sending HTTP DELETE requests in scripts is forbidden",
+		priority: 80,
+	},
+	{
+		name:     "[builtin] Bulk clear / purge endpoint paths",
+		target:   "tool_input",
+		typ:      "regex",
+		pattern:  `(?i)/(?:clear|wipe|flush|purge|truncate|drop|destroy|factory[-_]reset|reset[-_]all)(?:[/?#"'\s]|$)`,
+		action:   "deny",
+		message:  "Calling bulk-clear or destroy endpoints (/clear /wipe /flush /purge etc.) is forbidden",
+		priority: 80,
+	},
+}
+
 // seedDefaultInterceptRules inserts built-in safety intercept rules once on
 // first startup. The seed is gated by a settings flag so user edits (disable,
 // delete, re-order) are never overwritten on subsequent restarts.
@@ -349,178 +530,7 @@ func (d *DB) seedDefaultInterceptRules() error {
 	if v, _, _ := d.GetSetting("intercept_default_rules_v1"); v == "done" {
 		return nil
 	}
-	type rule struct {
-		name     string
-		target   string // tool_name | tool_input
-		typ      string // string | regex
-		pattern  string
-		action   string
-		message  string
-		priority int
-	}
-	rules := []rule{
-		// ── Destructive system commands (priority 100) ──────────────────────────────────
-		{
-			name:     "[builtin] Recursive force delete rm -rf",
-			target:   "tool_input",
-			typ:      "regex",
-			pattern:  `(?i)\brm\b.{0,80}(?:-[a-z]*r[a-z]*f[a-z]*|-[a-z]*f[a-z]*r[a-z]*|--recursive|--no-preserve-root)`,
-			action:   "deny",
-			message:  "Recursive force deletion (rm -rf / rm --recursive) is forbidden; it may permanently damage the system or the target environment",
-			priority: 100,
-		},
-		{
-			name:     "[builtin] Delete critical system directories",
-			target:   "tool_input",
-			typ:      "regex",
-			pattern:  `\brm\b[^"'\n]{0,60}["'\s](/|/etc|/bin|/usr|/boot|/var|/lib|/sys|/proc|/dev|/sbin|/root)`,
-			action:   "deny",
-			message:  "Deleting critical system paths is forbidden",
-			priority: 100,
-		},
-		{
-			name:     "[builtin] Disk format mkfs",
-			target:   "tool_input",
-			typ:      "regex",
-			pattern:  `\bmkfs\b`,
-			action:   "deny",
-			message:  "Formatting disks (mkfs) is forbidden",
-			priority: 100,
-		},
-		{
-			name:     "[builtin] Overwrite disk device dd",
-			target:   "tool_input",
-			typ:      "regex",
-			pattern:  `\bdd\b[^|\n]{0,100}\bof=\s*/dev/[a-zA-Z]`,
-			action:   "deny",
-			message:  "Overwriting disk devices with dd is forbidden",
-			priority: 100,
-		},
-		{
-			name:     "[builtin] Fork bomb",
-			target:   "tool_input",
-			typ:      "regex",
-			pattern:  `:\(\)\s*\{[^}]*:\|:`,
-			action:   "deny",
-			message:  "Running a fork bomb is forbidden",
-			priority: 100,
-		},
-		{
-			name:     "[builtin] Shutdown / reboot",
-			target:   "tool_input",
-			typ:      "regex",
-			pattern:  `\b(?:shutdown|reboot|halt|poweroff|init\s+[06])\b`,
-			action:   "deny",
-			message:  "Running shutdown or reboot commands is forbidden",
-			priority: 100,
-		},
-		{
-			name:     "[builtin] Kill all processes",
-			target:   "tool_input",
-			typ:      "regex",
-			pattern:  `\bkill\s+-9\s+-1\b|\bkillall\s+-9\b`,
-			action:   "deny",
-			message:  "kill -9 -1 or killall -9 (killing all processes) is forbidden",
-			priority: 100,
-		},
-		{
-			name:     "[builtin] Disk wipe shred / wipe",
-			target:   "tool_input",
-			typ:      "regex",
-			pattern:  `\b(?:shred|wipe)\b[^|\n]{0,80}/dev/[a-zA-Z]`,
-			action:   "deny",
-			message:  "Wiping disk devices with shred/wipe is forbidden",
-			priority: 100,
-		},
-		{
-			name:     "[builtin] Flush firewall rules",
-			target:   "tool_input",
-			typ:      "regex",
-			pattern:  `\biptables\s+(?:-F|--flush)\b|\bnft\s+flush\s+ruleset\b`,
-			action:   "deny",
-			message:  "Flushing firewall rules (iptables -F / nft flush) is forbidden",
-			priority: 100,
-		},
-		// ── Destructive database operations (priority 90) ─────────────────────────────────
-		{
-			name:     "[builtin] SQL DROP DATABASE / TABLE / SCHEMA",
-			target:   "tool_input",
-			typ:      "regex",
-			pattern:  `(?i)\bDROP\s+(?:DATABASE|TABLE|SCHEMA|INDEX|VIEW|TABLESPACE|USER|ROLE)\b`,
-			action:   "deny",
-			message:  "DROP operations are forbidden; they may irreversibly destroy database objects",
-			priority: 90,
-		},
-		{
-			name:     "[builtin] SQL TRUNCATE",
-			target:   "tool_input",
-			typ:      "regex",
-			pattern:  `(?i)\bTRUNCATE\s+(?:TABLE\s+)?\w`,
-			action:   "deny",
-			message:  "TRUNCATE is forbidden; it may wipe all data in a table",
-			priority: 90,
-		},
-		{
-			name:     "[builtin] MongoDB drop / dropDatabase",
-			target:   "tool_input",
-			typ:      "regex",
-			pattern:  `(?i)\.(?:dropDatabase|dropCollection|drop)\s*\(`,
-			action:   "deny",
-			message:  "MongoDB drop operations are forbidden",
-			priority: 90,
-		},
-		{
-			name:     "[builtin] Redis FLUSHALL / FLUSHDB",
-			target:   "tool_input",
-			typ:      "regex",
-			pattern:  `(?i)\b(?:FLUSHALL|FLUSHDB)\b`,
-			action:   "deny",
-			message:  "Redis FLUSHALL / FLUSHDB is forbidden; it may wipe all cached data",
-			priority: 90,
-		},
-		// ── Destructive HTTP requests (priority 80) ──────────────────────────────────
-		// Three common ways an Agent sends a DELETE request:
-		//   1. curl -X DELETE / --request DELETE (run directly by the Bash tool or written into a script)
-		//   2. the .delete() method of a Python HTTP client
-		//   3. method: 'DELETE' / method="DELETE" in JS/generic scripts
-		{
-			name:     "[builtin] curl / wget sending DELETE requests",
-			target:   "tool_input",
-			typ:      "regex",
-			pattern:  `(?i)\bcurl\b[^|\n&;"]{0,300}(?:-X\s*DELETE|--request\s+DELETE|-XDELETE)|\bwget\b[^|\n&;"]{0,300}--method[=\s]+DELETE`,
-			action:   "deny",
-			message:  "Sending HTTP DELETE requests via curl/wget is forbidden; it may delete data on the target system",
-			priority: 80,
-		},
-		{
-			name:     "[builtin] Python HTTP client DELETE (requests/httpx/aiohttp)",
-			target:   "tool_input",
-			typ:      "regex",
-			pattern:  `(?i)\b(?:requests|httpx|aiohttp|urllib\.request)\.delete\s*\(|session\.delete\s*\(|client\.delete\s*\(`,
-			action:   "deny",
-			message:  "Sending DELETE requests with a Python HTTP client is forbidden",
-			priority: 80,
-		},
-		{
-			name:     "[builtin] HTTP DELETE method declared in scripts (JS/generic)",
-			target:   "tool_input",
-			typ:      "regex",
-			pattern:  `(?i)axios\.delete\s*\(|method\s*[:=]\s*['"]DELETE['"]`,
-			action:   "deny",
-			message:  "Declaring and sending HTTP DELETE requests in scripts is forbidden",
-			priority: 80,
-		},
-		{
-			name:     "[builtin] Bulk clear / purge endpoint paths",
-			target:   "tool_input",
-			typ:      "regex",
-			pattern:  `(?i)/(?:clear|wipe|flush|purge|truncate|drop|destroy|factory[-_]reset|reset[-_]all)(?:[/?#"'\s]|$)`,
-			action:   "deny",
-			message:  "Calling bulk-clear or destroy endpoints (/clear /wipe /flush /purge etc.) is forbidden",
-			priority: 80,
-		},
-	}
-	for _, r := range rules {
+	for _, r := range defaultInterceptRulesV1 {
 		if _, err := d.Exec(`
 INSERT INTO intercept_rules(name, enabled, priority, match_target, match_type, pattern, action, message, timeout_enabled, timeout_seconds, timeout_action)
 VALUES ($1, true, $2, $3, $4, $5, $6, $7, false, 60, 'deny')
@@ -531,6 +541,36 @@ ON CONFLICT DO NOTHING`,
 		}
 	}
 	return d.SetSetting("intercept_default_rules_v1", "done")
+}
+
+// interceptRuleV2 / defaultInterceptRulesV2 are the v2 built-in rules (always tool_input + regex),
+// at package level for the same reason as defaultInterceptRulesV1.
+type interceptRuleV2 struct {
+	name     string
+	pattern  string
+	action   string
+	message  string
+	enabled  bool
+	priority int
+}
+
+var defaultInterceptRulesV2 = []interceptRuleV2{
+	{
+		name:     "[builtin] Destructive system commands",
+		pattern:  `(?i)\b(rm\s+-rf\s+/|mkfs|dd\s+if=|:\(\)\s*\{|shutdown|reboot|>\s*/dev/sd)`,
+		action:   "deny",
+		message:  "Destructive command rejected (rm -rf / / mkfs / dd / fork bomb / shutdown or reboot / overwriting disk devices)",
+		enabled:  true,
+		priority: 100,
+	},
+	{
+		name:     "[builtin] Data exfiltration pipe",
+		pattern:  `(?i)(curl|wget|nc|ncat)\b[^|]*\b(\|\s*(curl|wget|nc))`,
+		action:   "deny",
+		message:  "Suspected data exfiltration pipe rejected (command output sent out via curl/wget/nc)",
+		enabled:  false,
+		priority: 80,
+	},
 }
 
 // seedDefaultInterceptRulesV2 migrates the two safety patterns that used to be
@@ -544,32 +584,7 @@ func (d *DB) seedDefaultInterceptRulesV2() error {
 	if v, _, _ := d.GetSetting("intercept_default_rules_v2"); v == "done" {
 		return nil
 	}
-	rules := []struct {
-		name     string
-		pattern  string
-		action   string
-		message  string
-		enabled  bool
-		priority int
-	}{
-		{
-			name:     "[builtin] Destructive system commands",
-			pattern:  `(?i)\b(rm\s+-rf\s+/|mkfs|dd\s+if=|:\(\)\s*\{|shutdown|reboot|>\s*/dev/sd)`,
-			action:   "deny",
-			message:  "Destructive command rejected (rm -rf / / mkfs / dd / fork bomb / shutdown or reboot / overwriting disk devices)",
-			enabled:  true,
-			priority: 100,
-		},
-		{
-			name:     "[builtin] Data exfiltration pipe",
-			pattern:  `(?i)(curl|wget|nc|ncat)\b[^|]*\b(\|\s*(curl|wget|nc))`,
-			action:   "deny",
-			message:  "Suspected data exfiltration pipe rejected (command output sent out via curl/wget/nc)",
-			enabled:  false,
-			priority: 80,
-		},
-	}
-	for _, r := range rules {
+	for _, r := range defaultInterceptRulesV2 {
 		if _, err := d.Exec(`
 INSERT INTO intercept_rules(name, enabled, priority, match_target, match_type, pattern, action, message, timeout_enabled, timeout_seconds, timeout_action)
 VALUES ($1, $2, $3, 'tool_input', 'regex', $4, $5, $6, false, 60, 'deny')
@@ -598,18 +613,24 @@ ON CONFLICT DO NOTHING`,
 // Exported as a package const only so the seeded regex is unit-testable without a DB.
 const deleteEndpointPathPattern = `(?i)/(?:(?:delete|remove|unlink|erase|destroy)[-\w]*|del)(?:[/?#"'\s]|$)`
 
+// Name and message of the v3 rule (package level for localizeBuiltinRuleSeeds).
+const (
+	interceptRuleV3Name    = "[builtin] Delete-type endpoint paths"
+	interceptRuleV3Message = "Calling delete-type endpoints (/delete /remove /unlink /erase etc.) is forbidden regardless of the HTTP method -- most applications' delete endpoints can be triggered with GET/POST and will really delete target data just the same"
+)
+
 func (d *DB) seedDefaultInterceptRulesV3() error {
 	if v, _, _ := d.GetSetting("intercept_default_rules_v3"); v == "done" {
 		return nil
 	}
-	const name = "[builtin] Delete-type endpoint paths"
+	const name = interceptRuleV3Name
 	if _, err := d.Exec(`
 INSERT INTO intercept_rules(name, enabled, priority, match_target, match_type, pattern, action, message, timeout_enabled, timeout_seconds, timeout_action)
 SELECT $1, true, 80, 'tool_input', 'regex', $2, 'deny', $3, false, 60, 'deny'
 WHERE NOT EXISTS (SELECT 1 FROM intercept_rules WHERE name = $1)`,
 		name,
 		deleteEndpointPathPattern,
-		"Calling delete-type endpoints (/delete /remove /unlink /erase etc.) is forbidden regardless of the HTTP method -- most applications' delete endpoints can be triggered with GET/POST and will really delete target data just the same",
+		interceptRuleV3Message,
 	); err != nil {
 		return fmt.Errorf("rule %q: %w", name, err)
 	}

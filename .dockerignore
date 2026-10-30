@@ -4,6 +4,9 @@ web/.next
 web/out
 server/webui/dist
 /artex
+/dist
+/.env
+/config.json
 data
 *.db
 transcripts
