@@ -10,7 +10,7 @@ func TestRenderSystemOverrideAndFallback(t *testing.T) {
 
 	// no override → built-in default
 	PromptOverride = nil
-	if got := renderSystem("planner", "DEFAULT", PlannerVars{Goal: "g"}); got != "DEFAULT" {
+	if got := renderBody("planner", "DEFAULT", PlannerVars{Goal: "g"}); got != "DEFAULT" {
 		t.Fatalf("no override should give default, got %q", got)
 	}
 
@@ -21,13 +21,13 @@ func TestRenderSystemOverrideAndFallback(t *testing.T) {
 		}
 		return "", false
 	}
-	if got := renderSystem("planner", "DEFAULT", PlannerVars{Goal: "pwn X", Scope: "*.x.com"}); got != "Goal:pwn X Scope:*.x.com" {
+	if got := renderBody("planner", "DEFAULT", PlannerVars{Goal: "pwn X", Scope: "*.x.com"}); got != "Goal:pwn X Scope:*.x.com" {
 		t.Fatalf("override render: %q", got)
 	}
 
 	// override referencing a non-catalog var → execution error → fallback to default
 	PromptOverride = func(k string) (string, bool) { return "{{.NotInCatalog}}", true }
-	if got := renderSystem("planner", "DEFAULT", PlannerVars{Goal: "x"}); got != "DEFAULT" {
+	if got := renderBody("planner", "DEFAULT", PlannerVars{Goal: "x"}); got != "DEFAULT" {
 		t.Fatalf("bad var should fall back to default, got %q", got)
 	}
 
@@ -85,12 +85,17 @@ func TestRenderSystemOutputLanguage(t *testing.T) {
 	t.Cleanup(func() { PromptOverride = nil; OutputLanguage = nil })
 	PromptOverride = func(string) (string, bool) { return "BODY Write everything in English", true }
 
-	// unset / en (the default) → prompt unchanged (exactly the body, keeps the prompt-cache prefix)
+	// unset / en (the default) → English directive after the body, so a task written in
+	// Chinese still gets English output
 	for _, lang := range []func() string{nil, func() string { return "en" }, func() string { return "bogus" }} {
 		OutputLanguage = lang
-		if got := renderSystem("reporter", "DEFAULT", chatVars{}); got != "BODY Write everything in English" {
-			t.Fatalf("en should leave the prompt unchanged, got %q", got)
+		if got := renderSystem("reporter", "DEFAULT", chatVars{}); got != "BODY Write everything in English"+englishOutputDirective {
+			t.Fatalf("en should append the English directive, got %q", got)
 		}
+	}
+	OutputLanguage = nil
+	if !strings.Contains(plannerSystem("g", "/data", "/data"), englishOutputDirective) {
+		t.Fatal("planner system prompt is missing the English directive")
 	}
 
 	// zh → Chinese directive appended after the (user-edited) body so it overrides "Write everything in English"

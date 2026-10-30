@@ -45,17 +45,22 @@ func renderSystem(agentKey, def string, vars any) string {
 // keeps the built-in behaviour: English (the prompts themselves are written in English).
 var OutputLanguage func() string
 
-// LanguageDirective is appended to every system prompt when the output language is
-// Chinese. It comes after the (possibly user-edited) prompt body so it overrides
-// language instructions in it, e.g. the reporter's "Write everything in English".
-// Empty for en (the default), so the en prompt — and its prompt-cache prefix — is
-// exactly the prompt body.
+// LanguageDirective is appended to every system prompt. It comes after the (possibly
+// user-edited) prompt body so it overrides language instructions in it, e.g. the
+// reporter's "Write everything in English" when the output language is zh. The en
+// directive is needed too: without it models answer in the language of the task
+// description, so a task written in Chinese got Chinese goals, facts and findings.
+// Both are constants, so the prompt-cache prefix stays stable.
 func LanguageDirective() string {
-	if OutputLanguage == nil || OutputLanguage() != "zh" {
-		return ""
+	if OutputLanguage != nil && OutputLanguage() == "zh" {
+		return chineseOutputDirective
 	}
-	return chineseOutputDirective
+	return englishOutputDirective
 }
+
+// englishOutputDirective keeps agent output in English whatever language the task,
+// its goals or the user's messages are written in.
+const englishOutputDirective = "\n\n**Output language (system setting, overrides any other language requirement above)**: write all output in English — replies, finding titles/descriptions/impact/remediation/reports, facts, hints, intent summaries, todo and goal text, retest summaries. Do this even when the task description, goals, earlier notes or user messages are written in another language (e.g. Chinese): restate their content in English. Keep tool names, parameter names, enum values, code, commands, file paths, HTTP requests/responses and quoted target text verbatim."
 
 // chineseOutputDirective is intentionally written in Chinese: it switches agent output
 // to Simplified Chinese when the output_language setting is "zh".

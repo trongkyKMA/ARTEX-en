@@ -12,6 +12,7 @@ import (
 	"strconv"
 	"strings"
 
+	"github.com/Autumn-27/artex/agent"
 	"github.com/Autumn-27/artex/db"
 	"github.com/Autumn-27/artex/guard"
 	"github.com/Autumn-27/artex/intercept"
@@ -50,7 +51,9 @@ func (s *Server) wireInterceptReviewer() {
 		// Tag this call's usage as the "judge" lane so the config page can report
 		// how much the fallback approval has spent, separate from model profiles.
 		ctx = llmrec.WithWorker(ctx, judgeWorkerLane)
-		text, err := reviewCompletion(ctx, prov, prompt, input)
+		// Without the language directive the judge explains itself in the language of the
+		// reviewed command, e.g. Chinese for a task written in Chinese.
+		text, err := reviewCompletion(ctx, prov, prompt+agent.LanguageDirective(), input)
 		if err != nil {
 			return intercept.Decision{ProfileID: profileID}, err
 		}
