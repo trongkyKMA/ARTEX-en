@@ -31,6 +31,14 @@ import { tr } from "@/lib/i18n";
 import type { LLMPoolMember, LLMPoolStatus, LLMProfile, LLMRetryOverride } from "@/lib/types";
 import { cn } from "@/lib/utils";
 
+import {
+  CUSTOM_PROVIDER,
+  detectProvider,
+  findPreset,
+  type LLMFormat,
+  PROVIDER_PRESETS,
+  presetFormats,
+} from "./_components/providers";
 import { ProfileRetryFields, RetryPolicyPanel, ZERO_OVERRIDE } from "./_components/retry";
 
 // The thinking switch (thinking.type) and thinking effort (reasoning_effort) are two **mutually independent** fields,
@@ -353,7 +361,8 @@ function ProfileSheet({
 }) {
   const isNew = !profile;
   const [name, setName] = React.useState("");
-  const [format, setFormat] = React.useState<"anthropic" | "openai" | "openai-responses">("anthropic");
+  const [format, setFormat] = React.useState<LLMFormat>("anthropic");
+  const [provider, setProvider] = React.useState("anthropic"); // preset id or CUSTOM_PROVIDER
   const [model, setModel] = React.useState("");
   const [baseUrl, setBaseUrl] = React.useState("");
   const [proxy, setProxy] = React.useState("");
@@ -381,10 +390,14 @@ function ProfileSheet({
   // is a clean start, with no leftovers from the previous profile.
   React.useEffect(() => {
     if (!open) return;
-    setName(profile?.name ?? "");
-    setFormat(profile?.format === "openai" || profile?.format === "openai-responses" ? profile.format : "anthropic");
-    setModel(profile?.model ?? "");
-    setBaseUrl(profile?.base_url ?? "");
+    const initialFormat: LLMFormat =
+      profile?.format === "openai" || profile?.format === "openai-responses" ? profile.format : "anthropic";
+    setName(profile?.name ?? "Anthropic");
+    setFormat(initialFormat);
+    setModel(profile?.model ?? "claude-opus-5-5");
+    // A new profile starts from the Anthropic preset; an existing one is matched back to its provider by base URL.
+    setProvider(profile ? detectProvider(initialFormat, profile.base_url ?? "") : "anthropic");
+    setBaseUrl(profile ? (profile.base_url ?? "") : "https://api.anthropic.com");
     setProxy(profile?.proxy ?? "");
     setRps(String(profile?.rate_per_second ?? 0));
     setRpm(String(profile?.rate_per_minute ?? 0));
@@ -405,6 +418,30 @@ function ProfileSheet({
   }, [open, profile]);
 
   const profileId = profile ? Number(profile.id) : undefined;
+  const preset = findPreset(provider);
+  const formatOptions: LLMFormat[] = preset ? presetFormats(preset) : ["anthropic", "openai", "openai-responses"];
+
+  // Picking a provider fills in its default format, the base URL for that format and a suggested model.
+  // The name is only filled when empty or still another provider's default label, so a typed name is kept.
+  function applyProvider(id: string) {
+    setProvider(id);
+    const p = findPreset(id);
+    if (!p) return; // custom: keep whatever is typed
+    const nextFormat = presetFormats(p)[0];
+    setFormat(nextFormat);
+    setBaseUrl(p.endpoints[nextFormat] ?? "");
+    if (!p.models.includes(model.trim())) setModel(p.models[0] ?? "");
+    if (!name.trim() || PROVIDER_PRESETS.some((x) => x.label === name.trim())) setName(p.label);
+    setModels([]);
+    setModelsOpen(false);
+  }
+
+  // Switching format within a preset swaps to that provider's endpoint for the format.
+  function changeFormat(v: LLMFormat) {
+    setFormat(v);
+    const url = preset?.endpoints[v];
+    if (url) setBaseUrl(url);
+  }
 
   async function loadModels() {
     if (loadingModels) return;
@@ -554,27 +591,58 @@ function ProfileSheet({
         <div className="flex min-h-0 flex-1 flex-col gap-4 overflow-y-auto px-4 pb-4">
           <div className="grid gap-4 sm:grid-cols-2">
             <div className="grid gap-2">
-              <Label htmlFor="p-name">{tr("名称", "Name")}</Label>
-              <Input
-                id="p-name"
-                placeholder={tr("例如：OpenAI 生产", "e.g. OpenAI production")}
-                value={name}
-                onChange={(e) => setName(e.target.value)}
-              />
+              <Label>{tr("服务商", "Provider")}</Label>
+              <Select value={provider} onValueChange={applyProvider}>
+                <SelectTrigger>
+                  <SelectValue placeholder={tr("选择服务商", "Select provider")} />
+                </SelectTrigger>
+                <SelectContent>
+                  {PROVIDER_PRESETS.map((p) => (
+                    <SelectItem key={p.id} value={p.id}>
+                      {p.label}
+                    </SelectItem>
+                  ))}
+                  <SelectItem value={CUSTOM_PROVIDER}>
+                    {tr("自定义 / 其他兼容网关", "Custom / other gateway")}
+                  </SelectItem>
+                </SelectContent>
+              </Select>
             </div>
             <div className="grid gap-2">
               <Label>{tr("格式", "Format")}</Label>
-              <Select value={format} onValueChange={(v) => setFormat(v as "anthropic" | "openai" | "openai-responses")}>
+              <Select value={format} onValueChange={(v) => changeFormat(v as LLMFormat)}>
                 <SelectTrigger>
                   <SelectValue placeholder={tr("选择格式", "Select format")} />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="anthropic">Anthropic</SelectItem>
-                  <SelectItem value="openai">OpenAI (Chat Completions)</SelectItem>
-                  <SelectItem value="openai-responses">OpenAI (Responses API)</SelectItem>
+                  {formatOptions.includes("anthropic") && <SelectItem value="anthropic">Anthropic</SelectItem>}
+                  {formatOptions.includes("openai") && (
+                    <SelectItem value="openai">OpenAI (Chat Completions)</SelectItem>
+                  )}
+                  {formatOptions.includes("openai-responses") && (
+                    <SelectItem value="openai-responses">OpenAI (Responses API)</SelectItem>
+                  )}
                 </SelectContent>
               </Select>
             </div>
+          </div>
+          {preset && (
+            <p className="-mt-2 text-muted-foreground text-xs">
+              {preset.note ? `${preset.note} ` : ""}
+              <a href={preset.docsUrl} target="_blank" rel="noreferrer" className="underline underline-offset-2">
+                {tr("官方文档", "Provider docs")}
+              </a>
+            </p>
+          )}
+
+          <div className="grid gap-2">
+            <Label htmlFor="p-name">{tr("名称", "Name")}</Label>
+            <Input
+              id="p-name"
+              placeholder={tr("例如：OpenAI 生产", "e.g. OpenAI production")}
+              value={name}
+              onChange={(e) => setName(e.target.value)}
+            />
           </div>
 
           <div className="grid gap-2">
@@ -583,7 +651,7 @@ function ProfileSheet({
               <Input
                 id="p-model"
                 className="font-mono"
-                placeholder="claude-opus-4-8"
+                placeholder={preset?.models[0] ?? "claude-opus-5-5"}
                 value={model}
                 onChange={(e) => setModel(e.target.value)}
               />
@@ -622,6 +690,30 @@ function ProfileSheet({
                 )}
               </Popover>
             </div>
+            {preset && preset.models.length > 0 && (
+              <div className="flex flex-wrap items-center gap-1.5">
+                <span className="text-muted-foreground text-xs">{tr("推荐：", "Suggested:")}</span>
+                {preset.models.map((m) => (
+                  <button
+                    key={m}
+                    type="button"
+                    onClick={() => setModel(m)}
+                    className={cn(
+                      "rounded-md border px-1.5 py-0.5 font-mono text-xs hover:bg-accent hover:text-accent-foreground",
+                      model.trim() === m && "border-primary bg-primary/10",
+                    )}
+                  >
+                    {m}
+                  </button>
+                ))}
+              </div>
+            )}
+            <p className="text-muted-foreground text-xs">
+              {tr(
+                "填写 API Key 后会自动从服务商加载可用模型列表（也可点右侧按钮手动刷新）。",
+                "Once an API key is entered, the provider's available models are loaded automatically (or click the button on the right to refresh).",
+              )}
+            </p>
           </div>
 
           <div className="grid gap-2">
@@ -684,6 +776,10 @@ function ProfileSheet({
               }
               value={apiKey}
               onChange={(e) => setApiKey(e.target.value)}
+              onBlur={() => {
+                // Load the live model list as soon as a key is available, so the model can be picked instead of typed.
+                if (apiKey.trim() && models.length === 0 && !loadingModels) void loadModels();
+              }}
             />
           </div>
 

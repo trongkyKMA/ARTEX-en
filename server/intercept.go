@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"log"
 	"net/http"
 	"net/url"
 	"regexp"
@@ -70,17 +71,32 @@ func reviewCompletion(ctx context.Context, prov llm.Provider, prompt string, inp
 }
 
 // streamCollectText runs a single non-streaming-style completion (thinking off,
-// low temperature, bounded output) and returns the concatenated text. The
-// budget includes the explanation and complete closing JSON delimiters.
+// bounded output) and returns the concatenated text. The budget includes the
+// explanation and complete closing JSON delimiters.
+//
+// No temperature is sent: Claude Opus 4.7+ and OpenAI reasoning models reject it
+// with a 400. Some models also refuse to disable thinking (Claude Opus 5.5 /
+// Sonnet 5.5 / Fable return a 400), so on failure the request is retried once with
+// the profile's own thinking setting and room for the reasoning tokens — otherwise
+// every review would fail and fall back to llm_judge_fail_action (allow by default).
 func streamCollectText(ctx context.Context, prov llm.Provider, system, user string) (string, error) {
-	temp := 0.0
 	req := llm.CompletionRequest{
-		System:      []string{system},
-		Messages:    []llm.Message{llm.UserText(user)},
-		MaxTokens:   1024,
-		Temperature: &temp,
-		Thinking:    "disabled",
+		System:    []string{system},
+		Messages:  []llm.Message{llm.UserText(user)},
+		MaxTokens: 1024,
+		Thinking:  "disabled",
 	}
+	text, err := collectText(ctx, prov, req)
+	if err == nil || ctx.Err() != nil {
+		return text, err
+	}
+	log.Printf("[intercept] judge call with thinking disabled failed, retrying with the profile's thinking setting: %v", err)
+	req.Thinking = ""
+	req.MaxTokens = 4096
+	return collectText(ctx, prov, req)
+}
+
+func collectText(ctx context.Context, prov llm.Provider, req llm.CompletionRequest) (string, error) {
 	var sb strings.Builder
 	for ev, err := range prov.Stream(ctx, req) {
 		if err != nil {
