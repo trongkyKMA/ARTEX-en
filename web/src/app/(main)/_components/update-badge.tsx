@@ -7,6 +7,7 @@ import Link from "next/link";
 import { ArrowUpCircleIcon } from "lucide-react";
 
 import { api } from "@/lib/api";
+import { tr } from "@/lib/i18n";
 
 /**
  * 顶栏的"有新版本"提示：整页加载时查一次，有更新就在版本号旁边亮出来，
@@ -42,7 +43,7 @@ export function UpdateBadge() {
   return (
     <Link
       href="/system/settings"
-      title={`发现新版本 ${latest}，点击前往更新`}
+      title={tr(`发现新版本 ${latest}，点击前往更新`, `New version ${latest} available. Click to update`)}
       className="inline-flex items-center gap-1.5 rounded-full bg-primary px-2.5 py-1 font-medium text-primary-foreground text-xs transition-opacity hover:opacity-90"
     >
       {/* 呼吸点：顶栏元素很多，纯文字容易被忽略，动效让它一眼可见。 */}
@@ -51,8 +52,10 @@ export function UpdateBadge() {
         <span className="relative inline-flex size-1.5 rounded-full bg-primary-foreground" />
       </span>
       <ArrowUpCircleIcon className="size-3.5" />
-      <span className="hidden sm:inline">新版本 {latest}</span>
-      <span className="sm:hidden">新版本</span>
+      <span className="hidden sm:inline">
+        {tr("新版本", "New version")} {latest}
+      </span>
+      <span className="sm:hidden">{tr("新版本", "New version")}</span>
     </Link>
   );
 }

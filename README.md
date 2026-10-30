@@ -6,6 +6,8 @@ AI autonomous penetration testing system. Multi-agent LLM, Go backend, Next.js f
 
 AI 自主渗透测试系统（Go 后端 + Next.js 前端）。
 
+[English](README.en.md) · **中文**
+
 [![Release](https://img.shields.io/github/v/release/trhhubsd/ARTEX)](https://github.com/trhhubsd/ARTEX/releases)
 [![License: AGPL-3.0](https://img.shields.io/badge/license-AGPL--3.0-blue)](LICENSE)
 

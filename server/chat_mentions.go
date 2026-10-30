@@ -39,7 +39,7 @@ func parseChatMentions(message string) ([]chatMentionRef, error) {
 	for _, m := range chatMentionPattern.FindAllStringSubmatch(message, -1) {
 		id, err := strconv.ParseInt(m[2], 10, 64)
 		if err != nil || id <= 0 {
-			return nil, &chatMentionInputError{"引用 ID 无效，请重新选择"}
+			return nil, &chatMentionInputError{"invalid reference ID, please select again"}
 		}
 		kind := chatMentionKinds[m[1]]
 		key := kind + ":" + strconv.FormatInt(id, 10)
@@ -49,7 +49,7 @@ func parseChatMentions(message string) ([]chatMentionRef, error) {
 		seen[key] = true
 		refs = append(refs, chatMentionRef{kind, id, m[1]})
 		if len(refs) > maxChatMentions {
-			return nil, &chatMentionInputError{"每条消息最多引用 10 条记录"}
+			return nil, &chatMentionInputError{"a message can reference at most 10 records"}
 		}
 	}
 	return refs, nil
@@ -58,7 +58,7 @@ func parseChatMentions(message string) ([]chatMentionRef, error) {
 func (s *Server) searchChatMentions(w http.ResponseWriter, r *http.Request) {
 	kind, query := r.URL.Query().Get("kind"), strings.TrimSpace(r.URL.Query().Get("q"))
 	if (kind != "" && !db.ValidChatMentionKind(kind)) || utf8.RuneCountInString(query) > 200 {
-		writeErr(w, 400, "引用类型无效或搜索关键词超过 200 字")
+		writeErr(w, 400, "invalid reference type or search keyword longer than 200 characters")
 		return
 	}
 	pg := s.pg(w)
@@ -100,7 +100,7 @@ func composeChatMentionMessage(pg *db.DB, message string) (string, error) {
 		return message, err
 	}
 	if pg == nil {
-		return "", errors.New("引用数据暂不可用")
+		return "", errors.New("referenced data is temporarily unavailable")
 	}
 	var b strings.Builder
 	b.WriteString(message)
@@ -111,7 +111,7 @@ func composeChatMentionMessage(pg *db.DB, message string) (string, error) {
 			return "", err
 		}
 		if data == nil {
-			return "", &chatMentionInputError{fmt.Sprintf("引用的%s #%d 不存在或类型不匹配，请移除后重新选择", ref.Name, ref.ID)}
+			return "", &chatMentionInputError{fmt.Sprintf("referenced %s #%d does not exist or has a mismatched type; remove it and select again", ref.Kind, ref.ID)}
 		}
 		blob, err := json.Marshal(data)
 		if err != nil {
@@ -130,7 +130,7 @@ func composeChatMentionMessage(pg *db.DB, message string) (string, error) {
 		}
 		fmt.Fprintf(&b, "\n%s #%d:\n%s\n", ref.Name, ref.ID, blob)
 		if b.Len() > 384<<10 {
-			return "", &chatMentionInputError{"引用内容过大，请减少引用记录后重试"}
+			return "", &chatMentionInputError{"referenced content is too large; reduce the referenced records and retry"}
 		}
 	}
 	return b.String(), nil

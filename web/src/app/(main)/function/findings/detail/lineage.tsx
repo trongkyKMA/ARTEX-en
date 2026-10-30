@@ -4,6 +4,7 @@ import * as React from "react";
 
 import { ExplorationGraph } from "@/components/exploration-graph";
 import { api } from "@/lib/api";
+import { tr } from "@/lib/i18n";
 import type { Edge, TaskNode } from "@/lib/types";
 
 // FindingLineageView renders the exploration sub-graph from the task's initial
@@ -35,7 +36,10 @@ export function FindingLineageView({ findingId }: { findingId: string }) {
   if (loaded && nodes.length === 0) {
     return (
       <p className="text-muted-foreground p-6 text-sm">
-        无链路可展示（该漏洞未关联探索节点，或所属任务已删除）。
+        {tr(
+          "无链路可展示（该漏洞未关联探索节点，或所属任务已删除）。",
+          "No chain to show (this finding is not linked to an exploration node, or its task was deleted).",
+        )}
       </p>
     );
   }
@@ -45,7 +49,7 @@ export function FindingLineageView({ findingId }: { findingId: string }) {
       nodes={nodes}
       edges={edges}
       className="h-[68vh]"
-      emptyHint={loaded ? "无链路" : "加载中…"}
+      emptyHint={loaded ? tr("无链路", "No chain") : tr("加载中…", "Loading…")}
     />
   );
 }

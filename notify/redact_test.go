@@ -175,7 +175,7 @@ func TestRedactTransportErrorStripsURL(t *testing.T) {
 // TestRedactURLsInTextHandlesFallback 兜底路径：非 *url.Error 的自定义错误
 // （如重定向策略返回的错误）里的地址同样要被摘掉。
 func TestRedactURLsInTextHandlesFallback(t *testing.T) {
-	in := fmt.Sprintf("拒绝跨主机重定向（a.example → http://b.example/bot%s/send）", leakProbeToken)
+	in := fmt.Sprintf("refusing cross-host redirect (a.example → http://b.example/bot%s/send)", leakProbeToken)
 	got := redactURLsInText(in)
 	assertNoSecret(t, got, leakProbeToken)
 	if !strings.Contains(got, "http://b.example/…") {

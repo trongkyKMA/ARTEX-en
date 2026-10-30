@@ -21,7 +21,7 @@ cd /d "%~dp0"
 
 set "BIN=artex.exe"
 if not exist "%BIN%" (
-	echo [artex] 找不到可执行文件 %BIN% 1>&2
+	echo [artex] executable not found: %BIN% 1>&2
 	exit /b 1
 )
 
@@ -34,18 +34,18 @@ set /a delay=1
 set "code=!ERRORLEVEL!"
 
 if "!code!"=="0" (
-	echo [artex] 正常退出
+	echo [artex] exited normally
 	exit /b 0
 )
 
 if "!code!"=="%RESTART_CODE%" (
 	rem 更新/回滚已就绪：重跑后 artex 会在启动时完成换装。
-	echo [artex] 请求重启（应用新版本）…
+	echo [artex] restart requested ^(applying new version^)...
 	set /a delay=1
 	goto loop
 )
 
-echo [artex] 异常退出 ^(code=!code!^)，!delay!s 后重启 1>&2
+echo [artex] exited abnormally ^(code=!code!^), restarting in !delay!s 1>&2
 rem timeout 在被重定向的控制台里会失败，用 ping 兜底（延时 N 秒需要 N+1 次）。
 set /a pings=!delay!+1
 ping -n !pings! 127.0.0.1 >nul 2>&1

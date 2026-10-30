@@ -23,6 +23,8 @@ import {
   Wrench,
 } from "lucide-react";
 
+import { tr } from "@/lib/i18n";
+
 export type NavBadge = "new" | "soon";
 
 export interface NavSubItem {
@@ -64,35 +66,40 @@ export interface NavGroup {
 export const sidebarItems: NavGroup[] = [
   {
     id: 1,
-    label: "功能",
+    label: tr("功能", "Functions"),
     items: [
-      { id: "dashboard", title: "仪表盘", url: "/dashboard", icon: LayoutDashboard },
-      { id: "chat", title: "对话", url: "/chat", icon: MessageSquare },
-      { id: "tasks", title: "任务", url: "/function/tasks", icon: Target },
-      { id: "findings", title: "发现", url: "/function/findings", icon: Bug },
-      { id: "traffic", title: "流量", url: "/function/traffic", icon: Activity },
-      { id: "commands", title: "工具执行", url: "/function/commands", icon: Terminal },
-      { id: "llm-records", title: "LLM 录制", url: "/function/llm-records", icon: Radio },
-      { id: "assets", title: "资产", url: "/function/assets", icon: Network },
-      { id: "sync", title: "资产同步", url: "/function/sync", icon: FolderSync },
-      { id: "workspace", title: "工作空间", url: "/function/workspace", icon: FolderOpen },
+      { id: "dashboard", title: tr("仪表盘", "Dashboard"), url: "/dashboard", icon: LayoutDashboard },
+      { id: "chat", title: tr("对话", "Chat"), url: "/chat", icon: MessageSquare },
+      { id: "tasks", title: tr("任务", "Tasks"), url: "/function/tasks", icon: Target },
+      { id: "findings", title: tr("发现", "Findings"), url: "/function/findings", icon: Bug },
+      { id: "traffic", title: tr("流量", "Traffic"), url: "/function/traffic", icon: Activity },
+      { id: "commands", title: tr("工具执行", "Tool executions"), url: "/function/commands", icon: Terminal },
+      { id: "llm-records", title: tr("LLM 录制", "LLM records"), url: "/function/llm-records", icon: Radio },
+      { id: "assets", title: tr("资产", "Assets"), url: "/function/assets", icon: Network },
+      { id: "sync", title: tr("资产同步", "Asset sync"), url: "/function/sync", icon: FolderSync },
+      { id: "workspace", title: tr("工作空间", "Workspace"), url: "/function/workspace", icon: FolderOpen },
     ],
   },
   {
     id: 2,
-    label: "系统",
+    label: tr("系统", "System"),
     items: [
       { id: "llm", title: "LLM", url: "/system/llm", icon: Brain },
       { id: "agents", title: "Agent", url: "/system/agents", icon: Bot },
       { id: "mcp", title: "MCP", url: "/system/mcp", icon: Plug },
       { id: "skills", title: "Skill", url: "/system/skills", icon: Sparkles },
-      { id: "tools", title: "工具", url: "/system/tools", icon: Wrench },
-      { id: "notify", title: "通知推送", url: "/system/notify", icon: BellRing },
-      { id: "intercept", title: "拦截规则", url: "/system/intercept", icon: ShieldAlert },
-      { id: "asset-intercept", title: "资产拦截", url: "/system/intercept/assets", icon: Ban },
-      { id: "approvals", title: "审批记录", url: "/system/intercept/approvals", icon: ClipboardList },
-      { id: "logs", title: "日志", url: "/system/logs", icon: ScrollText },
-      { id: "settings", title: "系统配置", url: "/system/settings", icon: Settings2 },
+      { id: "tools", title: tr("工具", "Tools"), url: "/system/tools", icon: Wrench },
+      { id: "notify", title: tr("通知推送", "Notifications"), url: "/system/notify", icon: BellRing },
+      { id: "intercept", title: tr("拦截规则", "Intercept rules"), url: "/system/intercept", icon: ShieldAlert },
+      { id: "asset-intercept", title: tr("资产拦截", "Asset intercept"), url: "/system/intercept/assets", icon: Ban },
+      {
+        id: "approvals",
+        title: tr("审批记录", "Approval records"),
+        url: "/system/intercept/approvals",
+        icon: ClipboardList,
+      },
+      { id: "logs", title: tr("日志", "Logs"), url: "/system/logs", icon: ScrollText },
+      { id: "settings", title: tr("系统配置", "Settings"), url: "/system/settings", icon: Settings2 },
     ],
   },
 ];

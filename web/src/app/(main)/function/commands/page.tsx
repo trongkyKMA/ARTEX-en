@@ -13,11 +13,12 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Sheet, SheetContent, SheetDescription, SheetHeader, SheetTitle } from "@/components/ui/sheet";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { api } from "@/lib/api";
+import { intlLocale, tr } from "@/lib/i18n";
 import type { CommandRecord, ToolStat } from "@/lib/types";
 import { cn } from "@/lib/utils";
 
 function fmtTime(ts: string) {
-  return new Date(ts).toLocaleString("zh-CN", {
+  return new Date(ts).toLocaleString(intlLocale(), {
     month: "2-digit",
     day: "2-digit",
     hour: "2-digit",
@@ -130,7 +131,7 @@ export default function CommandsPage() {
       <div className="flex items-center justify-between gap-4">
         <div className="flex items-center gap-2">
           <TerminalIcon className="h-5 w-5 text-muted-foreground" />
-          <h1 className="text-xl font-semibold tracking-tight">工具执行</h1>
+          <h1 className="text-xl font-semibold tracking-tight">{tr("工具执行", "Tool executions")}</h1>
           <Badge variant="secondary">{total}</Badge>
         </div>
       </div>
@@ -140,14 +141,14 @@ export default function CommandsPage() {
         <div className="relative max-w-sm flex-1">
           <SearchIcon className="absolute top-1/2 left-2.5 size-4 -translate-y-1/2 text-muted-foreground" />
           <Input
-            placeholder="搜索工具 / 参数..."
+            placeholder={tr("搜索工具 / 参数...", "Search tool / arguments...")}
             value={query}
             onChange={(e) => setQuery(e.target.value)}
             className="h-8 pl-8"
           />
         </div>
         <Input
-          placeholder="任务 ID"
+          placeholder={tr("任务 ID", "Task ID")}
           className="h-8 w-28"
           value={taskFilter}
           onChange={(e) => setTaskFilter(e.target.value.replace(/\D/g, ""))}
@@ -159,7 +160,7 @@ export default function CommandsPage() {
           <SelectContent>
             {PAGE_SIZES.map((n) => (
               <SelectItem key={n} value={String(n)}>
-                {n} / 页
+                {tr(`${n} / 页`, `${n} / page`)}
               </SelectItem>
             ))}
           </SelectContent>
@@ -167,7 +168,7 @@ export default function CommandsPage() {
 
         <Button variant="outline" size="sm" className="h-8" onClick={() => setStatsOpen(true)}>
           <BarChart3Icon className="size-4" />
-          统计
+          {tr("统计", "Stats")}
         </Button>
 
         <div className="ml-auto flex items-center gap-2 text-xs text-muted-foreground">
@@ -205,12 +206,12 @@ export default function CommandsPage() {
             <Table>
               <TableHeader className="sticky top-0 z-10 bg-card">
                 <TableRow>
-                  <TableHead className="w-[130px]">时间</TableHead>
-                  <TableHead className="w-[60px]">任务</TableHead>
+                  <TableHead className="w-[130px]">{tr("时间", "Time")}</TableHead>
+                  <TableHead className="w-[60px]">{tr("任务", "Task")}</TableHead>
                   <TableHead className="w-[90px]">Worker</TableHead>
-                  <TableHead className="w-[110px]">工具</TableHead>
-                  <TableHead>输入</TableHead>
-                  <TableHead className="w-[60px]">状态</TableHead>
+                  <TableHead className="w-[110px]">{tr("工具", "Tool")}</TableHead>
+                  <TableHead>{tr("输入", "Input")}</TableHead>
+                  <TableHead className="w-[60px]">{tr("状态", "Status")}</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
@@ -223,7 +224,7 @@ export default function CommandsPage() {
                 ) : commands.length === 0 ? (
                   <TableRow>
                     <TableCell colSpan={6} className="py-12 text-center text-sm text-muted-foreground">
-                      暂无工具执行记录
+                      {tr("暂无工具执行记录", "No tool executions yet")}
                     </TableCell>
                   </TableRow>
                 ) : (
@@ -255,11 +256,11 @@ export default function CommandsPage() {
                       <TableCell>
                         {cmd.is_error ? (
                           <Badge variant="destructive" className="text-xs">
-                            失败
+                            {tr("失败", "Failed")}
                           </Badge>
                         ) : (
                           <Badge variant="secondary" className="text-xs text-emerald-600">
-                            成功
+                            {tr("成功", "Success")}
                           </Badge>
                         )}
                       </TableCell>
@@ -276,17 +277,19 @@ export default function CommandsPage() {
       <Dialog open={statsOpen} onOpenChange={setStatsOpen}>
         <DialogContent className="sm:max-w-lg">
           <DialogHeader>
-            <DialogTitle>工具调用统计</DialogTitle>
+            <DialogTitle>{tr("工具调用统计", "Tool call stats")}</DialogTitle>
             <DialogDescription>
-              {taskFilter || queryQ ? "当前筛选条件下的全部记录" : "全部工具执行记录"}
+              {taskFilter || queryQ
+                ? tr("当前筛选条件下的全部记录", "All records matching the current filters")
+                : tr("全部工具执行记录", "All tool executions")}
               {stats.length > 0 && (
                 <>
                   {" · "}
-                  <span className="tabular-nums">{stats.length}</span> 个工具 ·{" "}
-                  <span className="tabular-nums">{statsTotal}</span> 次调用
+                  <span className="tabular-nums">{stats.length}</span> {tr("个工具", "tools")} ·{" "}
+                  <span className="tabular-nums">{statsTotal}</span> {tr("次调用", "calls")}
                   {statsErrors > 0 && (
                     <>
-                      {" · 失败 "}
+                      {tr(" · 失败 ", " · failed ")}
                       <span className="tabular-nums text-red-600 dark:text-red-400">{statsErrors}</span>
                     </>
                   )}
@@ -300,7 +303,7 @@ export default function CommandsPage() {
               <Loader2Icon className="mx-auto h-5 w-5 animate-spin text-muted-foreground" />
             </div>
           ) : stats.length === 0 ? (
-            <div className="py-10 text-center text-sm text-muted-foreground">暂无统计数据</div>
+            <div className="py-10 text-center text-sm text-muted-foreground">{tr("暂无统计数据", "No stats yet")}</div>
           ) : (
             <div className="-mr-2 max-h-[55vh] space-y-1 overflow-auto pr-2">
               {stats.map((s) => (
@@ -309,7 +312,9 @@ export default function CommandsPage() {
                     <div className="flex items-center gap-2">
                       <span className="truncate font-mono text-xs font-medium">{s.tool}</span>
                       {s.errors > 0 && (
-                        <span className="text-[11px] tabular-nums text-red-600 dark:text-red-400">失败 {s.errors}</span>
+                        <span className="text-[11px] tabular-nums text-red-600 dark:text-red-400">
+                          {tr(`失败 ${s.errors}`, `${s.errors} failed`)}
+                        </span>
                       )}
                     </div>
                     <div className="mt-1.5 h-1.5 overflow-hidden rounded-full bg-muted">
@@ -337,7 +342,7 @@ export default function CommandsPage() {
           {selected && (
             <>
               <SheetHeader className="border-b px-5 py-4">
-                <SheetTitle className="pr-8">工具执行详情</SheetTitle>
+                <SheetTitle className="pr-8">{tr("工具执行详情", "Tool execution details")}</SheetTitle>
                 <SheetDescription>{fmtTime(selected.created_at)}</SheetDescription>
                 <div className="flex flex-wrap items-center gap-2 pt-2">
                   <Badge variant="outline" className="text-xs font-mono">
@@ -351,18 +356,20 @@ export default function CommandsPage() {
                   </Badge>
                   {selected.is_error ? (
                     <Badge variant="destructive" className="text-xs">
-                      失败
+                      {tr("失败", "Failed")}
                     </Badge>
                   ) : (
                     <Badge variant="secondary" className="text-xs text-emerald-600">
-                      成功
+                      {tr("成功", "Success")}
                     </Badge>
                   )}
                 </div>
               </SheetHeader>
               <div className="grid min-h-0 flex-1 grid-rows-2 divide-y">
                 <div className="flex min-h-0 min-w-0 flex-col">
-                  <div className="border-b px-5 py-2 text-xs font-medium text-muted-foreground">输入 Input</div>
+                  <div className="border-b px-5 py-2 text-xs font-medium text-muted-foreground">
+                    {tr("输入 Input", "Input")}
+                  </div>
                   <div className="min-h-0 flex-1 overflow-auto">
                     <pre className="p-5 font-mono text-xs break-all whitespace-pre-wrap">
                       {toolInput(selected.command)}
@@ -370,7 +377,9 @@ export default function CommandsPage() {
                   </div>
                 </div>
                 <div className="flex min-h-0 min-w-0 flex-col">
-                  <div className="border-b px-5 py-2 text-xs font-medium text-muted-foreground">输出 Output</div>
+                  <div className="border-b px-5 py-2 text-xs font-medium text-muted-foreground">
+                    {tr("输出 Output", "Output")}
+                  </div>
                   <div className="min-h-0 flex-1 overflow-auto">
                     <pre
                       className={cn(
@@ -378,7 +387,7 @@ export default function CommandsPage() {
                         selected.is_error && "text-red-600 dark:text-red-400",
                       )}
                     >
-                      {selected.output || "（空）"}
+                      {selected.output || tr("（空）", "(empty)")}
                     </pre>
                   </div>
                 </div>

@@ -27,6 +27,7 @@ import { Sheet, SheetContent, SheetDescription, SheetHeader, SheetTitle } from "
 import { Switch } from "@/components/ui/switch";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { api } from "@/lib/api";
+import { tr } from "@/lib/i18n";
 import type { LLMPoolMember, LLMPoolStatus, LLMProfile, LLMRetryOverride } from "@/lib/types";
 import { cn } from "@/lib/utils";
 
@@ -40,24 +41,32 @@ const NONE = "none";
 const fromStore = (v?: string) => (v ? v : NONE);
 const toStore = (v: string) => (v === NONE ? "" : v);
 const THINKING_TYPES: { value: string; label: string }[] = [
-  { value: NONE, label: "不发送（默认）" },
-  { value: "disabled", label: "关闭" },
-  { value: "enabled", label: "开启" },
+  { value: NONE, label: tr("不发送（默认）", "Not sent (default)") },
+  { value: "disabled", label: tr("关闭", "Disabled") },
+  { value: "enabled", label: tr("开启", "Enabled") },
 ];
 // 输出上限用哪个请求字段名（仅 openai 格式有意义）。NONE ↔ "" 走同一套哨兵转换。
 const MAX_TOKENS_FIELDS: { value: string; label: string }[] = [
-  { value: NONE, label: "max_tokens（默认）" },
+  { value: NONE, label: tr("max_tokens（默认）", "max_tokens (default)") },
   { value: "max_completion_tokens", label: "max_completion_tokens" },
 ];
 // 另外两种格式各自定死了字段名，选项对它们无意义，说明文案里直接讲清楚。
 const MAX_TOKENS_FIELD_HINTS: Record<string, string> = {
-  openai:
+  openai: tr(
     "上限发哪个键。max_tokens 是默认，绝大多数兼容网关只认它；OpenAI 官方推理模型（o 系列 / GPT-5）反过来只认 max_completion_tokens，收到 max_tokens 会直接报 unsupported_parameter。",
-  anthropic: "仅 openai 格式可选。Anthropic 的字段名固定为 max_tokens。",
-  "openai-responses": "仅 openai 格式可选。Responses API 的字段名固定为 max_output_tokens。",
+    "Which key carries the limit. max_tokens is the default and the only one most compatible gateways accept; OpenAI's own reasoning models (o-series / GPT-5) only accept max_completion_tokens and reject max_tokens with unsupported_parameter.",
+  ),
+  anthropic: tr(
+    "仅 openai 格式可选。Anthropic 的字段名固定为 max_tokens。",
+    "Only selectable for the openai format. Anthropic always uses max_tokens.",
+  ),
+  "openai-responses": tr(
+    "仅 openai 格式可选。Responses API 的字段名固定为 max_output_tokens。",
+    "Only selectable for the openai format. The Responses API always uses max_output_tokens.",
+  ),
 };
 const EFFORT_LEVELS: { value: string; label: string }[] = [
-  { value: NONE, label: "不发送（默认）" },
+  { value: NONE, label: tr("不发送（默认）", "Not sent (default)") },
   { value: "low", label: "low" },
   { value: "medium", label: "medium" },
   { value: "high", label: "high" },
@@ -77,26 +86,29 @@ type Health = { label: string; cls: string; hint?: string };
 function healthOf(p: LLMProfile, m?: LLMPoolMember): Health {
   if (!p.api_key_hint) {
     return {
-      label: "未配置 Key",
+      label: tr("未配置 Key", "No key"),
       cls: "border-muted-foreground/40 text-muted-foreground",
-      hint: "未填 API Key，无法调用",
+      hint: tr("未填 API Key，无法调用", "No API key set, cannot make calls"),
     };
   }
   if (m?.state === "tripped") {
     return {
-      label: m.cooldown_secs > 0 ? `已熔断 · ${cooldownText(m.cooldown_secs)}` : "已熔断",
+      label:
+        m.cooldown_secs > 0
+          ? tr(`已熔断 · ${cooldownText(m.cooldown_secs)}`, `Tripped · ${cooldownText(m.cooldown_secs)}`)
+          : tr("已熔断", "Tripped"),
       cls: "border-destructive/50 text-destructive",
       hint: m.last_error,
     };
   }
   if (m?.state === "degraded") {
     return {
-      label: `异常 · 失败 ${m.fails} 次`,
+      label: tr(`异常 · 失败 ${m.fails} 次`, `Degraded · ${m.fails} failures`),
       cls: "border-amber-500/50 text-amber-600 dark:text-amber-400",
       hint: m.last_error,
     };
   }
-  return { label: "正常", cls: "border-emerald-500/50 text-emerald-600 dark:text-emerald-400" };
+  return { label: tr("正常", "Healthy"), cls: "border-emerald-500/50 text-emerald-600 dark:text-emerald-400" };
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -130,12 +142,16 @@ function PoolSheet({
       await api.setSettings(patch);
       await onReload();
       if (patch.llm_pool_enabled !== undefined) {
-        toast.success(patch.llm_pool_enabled ? "已开启 LLM 轮询" : "已关闭 LLM 轮询");
+        toast.success(
+          patch.llm_pool_enabled
+            ? tr("已开启 LLM 轮询", "LLM rotation enabled")
+            : tr("已关闭 LLM 轮询", "LLM rotation disabled"),
+        );
       } else {
-        toast.success("已更新兜底设置");
+        toast.success(tr("已更新兜底设置", "Fallback setting updated"));
       }
     } catch (e) {
-      toast.error(`设置失败：${(e as Error).message}`);
+      toast.error(tr(`设置失败：${(e as Error).message}`, `Update failed: ${(e as Error).message}`));
     } finally {
       setBusy(false);
     }
@@ -145,9 +161,9 @@ function PoolSheet({
     try {
       await api.resetLLMPool(id);
       await onReload();
-      toast.success(id ? "已恢复该配置" : "已恢复全部配置");
+      toast.success(id ? tr("已恢复该配置", "Profile restored") : tr("已恢复全部配置", "All profiles restored"));
     } catch (e) {
-      toast.error(`恢复失败：${(e as Error).message}`);
+      toast.error(tr(`恢复失败：${(e as Error).message}`, `Restore failed: ${(e as Error).message}`));
     }
   }
 
@@ -162,25 +178,34 @@ function PoolSheet({
       <SheetContent side="right" className="flex flex-col gap-0 p-0 data-[side=right]:sm:max-w-lg">
         <SheetHeader className="px-4">
           <SheetTitle className="flex items-center gap-2">
-            <ZapIcon className="size-4" /> LLM 轮询 · 故障转移
+            <ZapIcon className="size-4" /> {tr("LLM 轮询 · 故障转移", "LLM rotation · failover")}
           </SheetTitle>
           <SheetDescription>
-            开启后，<b>未指定模型</b>的 Agent 在当前配置不可用（余额不足 / Key 失效 / 限流 /
-            服务异常）时自动切到下一个配置。
+            {tr("开启后，", "When enabled, Agents ")}
+            <b>{tr("未指定模型", "without a pinned model")}</b>
+            {tr(
+              "的 Agent 在当前配置不可用（余额不足 / Key 失效 / 限流 / 服务异常）时自动切到下一个配置。",
+              " automatically switch to the next profile when the current one is unavailable (insufficient balance / invalid key / rate limited / service error).",
+            )}
           </SheetDescription>
         </SheetHeader>
 
         <div className="flex min-h-0 flex-1 flex-col gap-4 overflow-y-auto px-4 pb-6">
           <div className="flex items-center justify-between gap-4 rounded-lg border p-3">
             <div className="grid gap-0.5">
-              <Label className="text-sm">启用轮询</Label>
-              <p className="text-muted-foreground text-xs">默认关闭。关闭时始终只用激活配置，失败即失败。</p>
+              <Label className="text-sm">{tr("启用轮询", "Enable rotation")}</Label>
+              <p className="text-muted-foreground text-xs">
+                {tr(
+                  "默认关闭。关闭时始终只用激活配置，失败即失败。",
+                  "Off by default. When off, only the active profile is used and a failure is final.",
+                )}
+              </p>
             </div>
             <Switch
               checked={enabled}
               disabled={busy}
               onCheckedChange={(v) => void toggle({ llm_pool_enabled: v })}
-              aria-label="LLM 轮询开关"
+              aria-label={tr("LLM 轮询开关", "LLM rotation switch")}
             />
           </div>
 
@@ -188,17 +213,19 @@ function PoolSheet({
             <>
               <div className="flex items-center justify-between gap-4 rounded-lg border p-3">
                 <div className="grid gap-0.5">
-                  <Label className="text-sm">指定模型失败时也兜底</Label>
+                  <Label className="text-sm">{tr("指定模型失败时也兜底", "Fall back for pinned models too")}</Label>
                   <p className="text-muted-foreground text-xs">
-                    默认关闭：Agent 或任务指定了某个配置就只用它，失败即失败（不会悄悄换成别的模型）。
-                    开启后，指定的配置失败时也会回落到下面的轮询链。
+                    {tr(
+                      "默认关闭：Agent 或任务指定了某个配置就只用它，失败即失败（不会悄悄换成别的模型）。开启后，指定的配置失败时也会回落到下面的轮询链。",
+                      "Off by default: an Agent or task pinned to a profile uses only that profile and a failure is final (it never silently switches models). When on, a failing pinned profile also falls back to the rotation chain below.",
+                    )}
                   </p>
                 </div>
                 <Switch
                   checked={pool?.bind_fallback ?? false}
                   disabled={busy}
                   onCheckedChange={(v) => void toggle({ llm_pool_bind_fallback: v })}
-                  aria-label="绑定配置失败兜底开关"
+                  aria-label={tr("绑定配置失败兜底开关", "Pinned profile fallback switch")}
                 />
               </div>
 
@@ -206,16 +233,19 @@ function PoolSheet({
 
               <div className="grid gap-2">
                 <div className="flex items-center justify-between">
-                  <Label className="text-sm">轮询顺序</Label>
+                  <Label className="text-sm">{tr("轮询顺序", "Rotation order")}</Label>
                   {tripped.length > 0 && (
                     <Button size="sm" variant="ghost" onClick={() => void recover()}>
-                      <RotateCcwIcon /> 全部恢复
+                      <RotateCcwIcon /> {tr("全部恢复", "Restore all")}
                     </Button>
                   )}
                 </div>
                 {inChain.length < 2 && (
                   <p className="text-muted-foreground text-xs">
-                    当前只有 {inChain.length} 个可用配置，轮询不会生效——至少需要 2 个已填 API Key 且参与轮询的配置。
+                    {tr(
+                      `当前只有 ${inChain.length} 个可用配置，轮询不会生效——至少需要 2 个已填 API Key 且参与轮询的配置。`,
+                      `Only ${inChain.length} usable profile(s), so rotation has no effect. At least 2 profiles with an API key that take part in rotation are needed.`,
+                    )}
                   </p>
                 )}
                 {chain.map((m) => {
@@ -237,24 +267,31 @@ function PoolSheet({
                         <span className="font-medium">{m.name}</span>
                         {m.active && (
                           <Badge variant="outline" className="border-amber-400/50 text-amber-500">
-                            激活
+                            {tr("激活", "Active")}
                           </Badge>
                         )}
-                        {excluded && <Badge variant="outline">不参与轮询</Badge>}
+                        {excluded && <Badge variant="outline">{tr("不参与轮询", "Excluded from rotation")}</Badge>}
                         <div className="ml-auto flex items-center gap-2">
                           {m.state === "tripped" && m.cooldown_secs > 0 && (
-                            <span className="text-muted-foreground text-xs">冷却 {cooldownText(m.cooldown_secs)}</span>
+                            <span className="text-muted-foreground text-xs">
+                              {tr("冷却", "Cooldown")} {cooldownText(m.cooldown_secs)}
+                            </span>
                           )}
                           {m.state === "degraded" && (
-                            <span className="text-muted-foreground text-xs">连续失败 {m.fails} 次</span>
+                            <span className="text-muted-foreground text-xs">
+                              {tr(`连续失败 ${m.fails} 次`, `${m.fails} consecutive failures`)}
+                            </span>
                           )}
                           {m.state !== "ok" && (
                             <Button
                               size="icon"
                               variant="ghost"
                               className="size-7"
-                              aria-label="立即恢复"
-                              title="立即恢复：清除熔断，下次调用重试该配置"
+                              aria-label={tr("立即恢复", "Restore now")}
+                              title={tr(
+                                "立即恢复：清除熔断，下次调用重试该配置",
+                                "Restore now: clear the breaker so the next call retries this profile",
+                              )}
                               onClick={() => void recover(m.profile_id)}
                             >
                               <RotateCcwIcon className="size-3.5" />
@@ -264,7 +301,11 @@ function PoolSheet({
                       </div>
                       <div className="flex flex-wrap items-center gap-x-3 pl-7 text-muted-foreground text-xs">
                         <code className="truncate font-mono">{m.model}</code>
-                        {!m.active && <span>优先级 {m.priority}</span>}
+                        {!m.active && (
+                          <span>
+                            {tr("优先级", "Priority")} {m.priority}
+                          </span>
+                        )}
                       </div>
                       {m.last_error && (
                         <p className="truncate pl-7 font-mono text-muted-foreground text-xs" title={m.last_error}>
@@ -276,15 +317,16 @@ function PoolSheet({
                 })}
                 {chain.length === 0 && (
                   <div className="rounded-lg border border-dashed p-4 text-center text-muted-foreground text-sm">
-                    暂无配置
+                    {tr("暂无配置", "No profiles yet")}
                   </div>
                 )}
               </div>
 
               <div className="rounded-lg border border-dashed p-3 text-muted-foreground text-xs leading-relaxed">
-                激活配置恒为第 1 顺位，其余按优先级从高到低（在各配置里设置）。某个配置失败后进入冷却 （60s → 5min →
-                30min），冷却期内被跳过，恢复后自动切回。上下文窗口装不下当前请求的配置会被跳过。 指定了模型的 Agent
-                与任务默认不参与轮询。
+                {tr(
+                  "激活配置恒为第 1 顺位，其余按优先级从高到低（在各配置里设置）。某个配置失败后进入冷却 （60s → 5min → 30min），冷却期内被跳过，恢复后自动切回。上下文窗口装不下当前请求的配置会被跳过。 指定了模型的 Agent 与任务默认不参与轮询。",
+                  "The active profile is always first; the rest follow by priority, highest first (set in each profile). A failing profile enters a cooldown (60s → 5min → 30min), is skipped during it, and is switched back to once it recovers. Profiles whose context window cannot fit the current request are skipped. Agents and tasks with a pinned model do not take part in rotation by default.",
+                )}
               </div>
             </>
           )}
@@ -373,12 +415,13 @@ function ProfileSheet({
       if (r.ok && r.models && r.models.length > 0) {
         setModels(r.models);
         setModelsOpen(true);
-        toast.success(`已加载 ${r.models.length} 个模型`);
+        toast.success(tr(`已加载 ${r.models.length} 个模型`, `Loaded ${r.models.length} models`));
       } else {
-        toast.error(`加载模型失败：${r.error ?? "未获取到模型"}`);
+        const err = r.error ?? tr("未获取到模型", "no models returned");
+        toast.error(tr(`加载模型失败：${err}`, `Failed to load models: ${err}`));
       }
     } catch (e) {
-      toast.error(`加载模型出错：${(e as Error).message}`);
+      toast.error(tr(`加载模型出错：${(e as Error).message}`, `Error loading models: ${(e as Error).message}`));
     } finally {
       setLoadingModels(false);
     }
@@ -404,12 +447,21 @@ function ProfileSheet({
       );
       // 回复内容一并展示：看得见模型确实说了话，才算和会话里跑通是一回事。
       if (r.ok)
-        toast.success(`连接成功 · ${r.latency_ms ?? "?"}ms · ${r.model ?? model}`, {
-          description: r.reply ? `回复：${r.reply}` : undefined,
-        });
-      else toast.error(`连接失败：${r.error ?? "未知"}`);
+        toast.success(
+          tr(
+            `连接成功 · ${r.latency_ms ?? "?"}ms · ${r.model ?? model}`,
+            `Connected · ${r.latency_ms ?? "?"}ms · ${r.model ?? model}`,
+          ),
+          {
+            description: r.reply ? tr(`回复：${r.reply}`, `Reply: ${r.reply}`) : undefined,
+          },
+        );
+      else {
+        const err = r.error ?? tr("未知", "unknown");
+        toast.error(tr(`连接失败：${err}`, `Connection failed: ${err}`));
+      }
     } catch (e) {
-      toast.error(`测试出错：${(e as Error).message}`);
+      toast.error(tr(`测试出错：${(e as Error).message}`, `Test error: ${(e as Error).message}`));
     } finally {
       setTesting(false);
     }
@@ -417,7 +469,7 @@ function ProfileSheet({
 
   async function save() {
     if (!name.trim() || !model.trim()) {
-      toast.error("请填写名称与模型");
+      toast.error(tr("请填写名称与模型", "Please enter a name and a model"));
       return;
     }
     if (saving) return;
@@ -446,12 +498,26 @@ function ProfileSheet({
         session_header_key: sessionHeaderKey.trim(),
         retry,
       });
-      if (isNew) toast.success(`已新建：${name.trim()}（在卡片上「设为激活」以启用）`);
-      else toast.success(profile?.is_default ? "已保存，激活配置即时生效，无需重启" : "已保存");
+      if (isNew)
+        toast.success(
+          tr(
+            `已新建：${name.trim()}（在卡片上「设为激活」以启用）`,
+            `Created: ${name.trim()} (use "Set active" on its card to enable it)`,
+          ),
+        );
+      else
+        toast.success(
+          profile?.is_default
+            ? tr(
+                "已保存，激活配置即时生效，无需重启",
+                "Saved. The active profile takes effect immediately, no restart needed",
+              )
+            : tr("已保存", "Saved"),
+        );
       onSaved(String(id));
       onOpenChange(false);
     } catch (e) {
-      toast.error(`保存失败：${(e as Error).message}`);
+      toast.error(tr(`保存失败：${(e as Error).message}`, `Save failed: ${(e as Error).message}`));
     } finally {
       setSaving(false);
     }
@@ -465,36 +531,42 @@ function ProfileSheet({
       >
         <SheetHeader className="px-4">
           <SheetTitle className="flex items-center gap-2">
-            {isNew ? "新建模型配置" : `编辑：${profile?.name}`}
+            {isNew ? tr("新建模型配置", "New LLM profile") : tr(`编辑：${profile?.name}`, `Edit: ${profile?.name}`)}
             {profile?.is_default && (
               <Badge variant="outline" className="border-amber-400/50 text-amber-500">
-                激活中
+                {tr("激活中", "Active")}
               </Badge>
             )}
           </SheetTitle>
           <SheetDescription>
             {isNew
-              ? "新建后不会自动激活，请在卡片上「设为激活」以启用。"
-              : "修改后点击保存；激活配置保存后对全部 Agent 立即生效。"}
+              ? tr(
+                  "新建后不会自动激活，请在卡片上「设为激活」以启用。",
+                  'New profiles are not activated automatically; use "Set active" on the card to enable it.',
+                )
+              : tr(
+                  "修改后点击保存；激活配置保存后对全部 Agent 立即生效。",
+                  "Click Save after editing; changes to the active profile apply to all Agents immediately.",
+                )}
           </SheetDescription>
         </SheetHeader>
 
         <div className="flex min-h-0 flex-1 flex-col gap-4 overflow-y-auto px-4 pb-4">
           <div className="grid gap-4 sm:grid-cols-2">
             <div className="grid gap-2">
-              <Label htmlFor="p-name">名称</Label>
+              <Label htmlFor="p-name">{tr("名称", "Name")}</Label>
               <Input
                 id="p-name"
-                placeholder="例如：OpenAI 生产"
+                placeholder={tr("例如：OpenAI 生产", "e.g. OpenAI production")}
                 value={name}
                 onChange={(e) => setName(e.target.value)}
               />
             </div>
             <div className="grid gap-2">
-              <Label>格式</Label>
+              <Label>{tr("格式", "Format")}</Label>
               <Select value={format} onValueChange={(v) => setFormat(v as "anthropic" | "openai" | "openai-responses")}>
                 <SelectTrigger>
-                  <SelectValue placeholder="选择格式" />
+                  <SelectValue placeholder={tr("选择格式", "Select format")} />
                 </SelectTrigger>
                 <SelectContent>
                   <SelectItem value="anthropic">Anthropic</SelectItem>
@@ -506,7 +578,7 @@ function ProfileSheet({
           </div>
 
           <div className="grid gap-2">
-            <Label htmlFor="p-model">模型</Label>
+            <Label htmlFor="p-model">{tr("模型", "Model")}</Label>
             <div className="flex gap-2">
               <Input
                 id="p-model"
@@ -526,7 +598,7 @@ function ProfileSheet({
                     className="shrink-0"
                     disabled={loadingModels}
                     onClick={loadModels}
-                    title="从 API 加载可用模型"
+                    title={tr("从 API 加载可用模型", "Load available models from the API")}
                   >
                     {loadingModels ? <Loader2Icon className="animate-spin" /> : <RefreshCwIcon />}
                   </Button>
@@ -553,7 +625,7 @@ function ProfileSheet({
           </div>
 
           <div className="grid gap-2">
-            <Label htmlFor="p-base-url">Base URL（可选）</Label>
+            <Label htmlFor="p-base-url">{tr("Base URL（可选）", "Base URL (optional)")}</Label>
             <Input
               id="p-base-url"
               className="font-mono"
@@ -564,7 +636,7 @@ function ProfileSheet({
           </div>
 
           <div className="grid gap-2">
-            <Label htmlFor="p-proxy">代理（可选）</Label>
+            <Label htmlFor="p-proxy">{tr("代理（可选）", "Proxy (optional)")}</Label>
             <Input
               id="p-proxy"
               className="font-mono"
@@ -573,24 +645,32 @@ function ProfileSheet({
               onChange={(e) => setProxy(e.target.value)}
             />
             <p className="text-muted-foreground text-xs">
-              仅 LLM 出站请求走此代理，支持 http/https/socks5，可带账号密码（如
-              socks5://user:pass@host:port，密码含特殊字符需 URL 编码）；留空表示不使用代理（直连）。
+              {tr(
+                "仅 LLM 出站请求走此代理，支持 http/https/socks5，可带账号密码（如 socks5://user:pass@host:port，密码含特殊字符需 URL 编码）；留空表示不使用代理（直连）。",
+                "Only outbound LLM requests use this proxy. Supports http/https/socks5 with optional credentials (e.g. socks5://user:pass@host:port; URL-encode special characters in the password). Leave empty to connect directly.",
+              )}
             </p>
           </div>
 
           <div className="grid gap-2">
-            <Label htmlFor="p-session-header">自定义会话头（可选）</Label>
+            <Label htmlFor="p-session-header">{tr("自定义会话头（可选）", "Custom session header (optional)")}</Label>
             <Input
               id="p-session-header"
               className="font-mono"
-              placeholder="如 x-session-id（留空=不发送）"
+              placeholder={tr("如 x-session-id（留空=不发送）", "e.g. x-session-id (empty = not sent)")}
               value={sessionHeaderKey}
               onChange={(e) => setSessionHeaderKey(e.target.value)}
             />
             <p className="text-muted-foreground text-xs">
-              填写头名后，每次请求都会带上这个 HTTP 头，头值自动填为 <b>当前会话的 session id</b>（chat 会话如
-              conv-12、worker 如 exp3-worker-i87）。用于按 session-id 头做提示缓存 /
-              粘性路由的网关；同一会话多轮稳定、不同会话互不相同。留空则不发送。
+              {tr(
+                "填写头名后，每次请求都会带上这个 HTTP 头，头值自动填为 ",
+                "When set, every request carries this HTTP header, with its value set automatically to ",
+              )}
+              <b>{tr("当前会话的 session id", "the current session id")}</b>
+              {tr(
+                "（chat 会话如 conv-12、worker 如 exp3-worker-i87）。用于按 session-id 头做提示缓存 / 粘性路由的网关；同一会话多轮稳定、不同会话互不相同。留空则不发送。",
+                " (e.g. conv-12 for chat sessions, exp3-worker-i87 for workers). Useful for gateways that do prompt caching / sticky routing by a session-id header; it stays stable across turns of one session and differs between sessions. Leave empty to not send it.",
+              )}
             </p>
           </div>
 
@@ -599,7 +679,9 @@ function ProfileSheet({
             <Input
               id="p-api-key"
               type="password"
-              placeholder={keyHint ? `已设置（${keyHint}），留空保持不变` : "sk-…"}
+              placeholder={
+                keyHint ? tr(`已设置（${keyHint}），留空保持不变`, `Set (${keyHint}); leave empty to keep`) : "sk-…"
+              }
               value={apiKey}
               onChange={(e) => setApiKey(e.target.value)}
             />
@@ -607,15 +689,15 @@ function ProfileSheet({
 
           <div className="grid gap-4 sm:grid-cols-3">
             <div className="grid gap-2">
-              <Label htmlFor="p-rps">每秒限速</Label>
+              <Label htmlFor="p-rps">{tr("每秒限速", "Requests / second")}</Label>
               <Input id="p-rps" type="number" min={0} value={rps} onChange={(e) => setRps(e.target.value)} />
             </div>
             <div className="grid gap-2">
-              <Label htmlFor="p-rpm">每分钟限速</Label>
+              <Label htmlFor="p-rpm">{tr("每分钟限速", "Requests / minute")}</Label>
               <Input id="p-rpm" type="number" min={0} value={rpm} onChange={(e) => setRpm(e.target.value)} />
             </div>
             <div className="grid gap-2">
-              <Label htmlFor="p-cw">上下文窗口(K)</Label>
+              <Label htmlFor="p-cw">{tr("上下文窗口(K)", "Context window (K)")}</Label>
               <Input
                 id="p-cw"
                 type="number"
@@ -628,18 +710,23 @@ function ProfileSheet({
             </div>
           </div>
           <p className="-mt-2 text-muted-foreground text-xs">
-            限速 0 = 不限，全 Agent 共享。上下文窗口单位 K（千 token），0 = 默认 200K，上限 1000（即
-            1M）；设太高会导致压缩不触发。
+            {tr(
+              "限速 0 = 不限，全 Agent 共享。上下文窗口单位 K（千 token），0 = 默认 200K，上限 1000（即 1M）；设太高会导致压缩不触发。",
+              "Rate limit 0 = unlimited, shared by all Agents. Context window is in K (thousand tokens); 0 = default 200K, max 1000 (1M). Setting it too high prevents compaction from triggering.",
+            )}
           </p>
 
           <div className="grid gap-3 rounded-lg border p-3">
             <div className="flex items-center justify-between gap-4">
               <div className="grid gap-0.5">
                 <Label htmlFor="p-priority" className="text-sm">
-                  轮询优先级
+                  {tr("轮询优先级", "Rotation priority")}
                 </Label>
                 <p className="text-muted-foreground text-xs">
-                  数字越大越先被选中；激活配置恒为第 1 顺位，与本值无关。相同优先级的配置会轮流打头，天然分摊额度。
+                  {tr(
+                    "数字越大越先被选中；激活配置恒为第 1 顺位，与本值无关。相同优先级的配置会轮流打头，天然分摊额度。",
+                    "Higher numbers are picked first; the active profile is always first regardless of this value. Profiles with equal priority take turns leading, spreading quota naturally.",
+                  )}
                 </p>
               </div>
               <Input
@@ -652,24 +739,35 @@ function ProfileSheet({
             </div>
             <div className="flex items-center justify-between gap-4 border-t pt-3">
               <div className="grid gap-0.5">
-                <Label className="text-sm">不参与轮询</Label>
+                <Label className="text-sm">{tr("不参与轮询", "Exclude from rotation")}</Label>
                 <p className="text-muted-foreground text-xs">
-                  开启后不会被当作故障转移目标（仍可被 Agent / 任务显式指定使用）。 适合「只给某个 Agent
-                  专用、不希望别人失败时烧掉」的昂贵配置。
+                  {tr(
+                    "开启后不会被当作故障转移目标（仍可被 Agent / 任务显式指定使用）。 适合「只给某个 Agent 专用、不希望别人失败时烧掉」的昂贵配置。",
+                    "When on, this profile is never used as a failover target (Agents / tasks can still pin it explicitly). Useful for expensive profiles reserved for one Agent that should not be burned when others fail.",
+                  )}
                 </p>
               </div>
-              <Switch checked={poolExclude} onCheckedChange={setPoolExclude} aria-label="不参与轮询" />
+              <Switch
+                checked={poolExclude}
+                onCheckedChange={setPoolExclude}
+                aria-label={tr("不参与轮询", "Exclude from rotation")}
+              />
             </div>
             <div className="flex items-center justify-between gap-4 border-t pt-3">
               <div className="grid gap-0.5">
-                <Label className="text-sm">流式输出 · streaming</Label>
+                <Label className="text-sm">{tr("流式输出 · streaming", "Streaming output")}</Label>
                 <p className="text-muted-foreground text-xs">
-                  开启（默认）走流式 SSE，有运行中实时进度与实时 token 计数。 关闭则走真·非流式（stream:false，
-                  一次性返回完整响应）——可绕开部分网关糟糕的 SSE 实现（空帧 / 思考字段丢帧），
-                  代价是失去运行中的实时进度。
+                  {tr(
+                    "开启（默认）走流式 SSE，有运行中实时进度与实时 token 计数。 关闭则走真·非流式（stream:false，一次性返回完整响应）——可绕开部分网关糟糕的 SSE 实现（空帧 / 思考字段丢帧），代价是失去运行中的实时进度。",
+                    "On (default) uses streaming SSE with live progress and live token counts. Off uses true non-streaming (stream:false, the full response at once), which works around some gateways' broken SSE (empty frames / dropped thinking frames) at the cost of live progress.",
+                  )}
                 </p>
               </div>
-              <Switch checked={streaming} onCheckedChange={setStreaming} aria-label="流式输出" />
+              <Switch
+                checked={streaming}
+                onCheckedChange={setStreaming}
+                aria-label={tr("流式输出", "Streaming output")}
+              />
             </div>
           </div>
 
@@ -677,12 +775,13 @@ function ProfileSheet({
             <div className="flex items-center justify-between gap-4">
               <div className="grid gap-0.5">
                 <Label htmlFor="p-max-tokens" className="text-sm">
-                  输出上限 · max tokens
+                  {tr("输出上限 · max tokens", "Output limit · max tokens")}
                 </Label>
                 <p className="text-muted-foreground text-xs">
-                  单次回复最多生成多少 token，随每次请求发出。0（默认）= 不发送该字段，由服务端默认值决定。
-                  这与上面的「上下文窗口」是两回事：那是模型总容量，只在本地用来算压缩阈值。
-                  设太小会让推理模型在思考阶段就被截断，一个字答案都出不来。
+                  {tr(
+                    "单次回复最多生成多少 token，随每次请求发出。0（默认）= 不发送该字段，由服务端默认值决定。这与上面的「上下文窗口」是两回事：那是模型总容量，只在本地用来算压缩阈值。设太小会让推理模型在思考阶段就被截断，一个字答案都出不来。",
+                    'Maximum tokens generated per reply, sent with every request. 0 (default) = field not sent, the server default applies. This is unrelated to the "Context window" above, which is the model\'s total capacity and is only used locally to compute the compaction threshold. Setting it too low can cut reasoning models off while thinking, before any answer is produced.',
+                  )}
                 </p>
               </div>
               <Input
@@ -697,7 +796,7 @@ function ProfileSheet({
             </div>
             <div className="flex items-center justify-between gap-4 border-t pt-3">
               <div className="grid gap-0.5">
-                <Label className="text-sm">上限字段名</Label>
+                <Label className="text-sm">{tr("上限字段名", "Limit field name")}</Label>
                 <p className="text-muted-foreground text-xs">{MAX_TOKENS_FIELD_HINTS[format]}</p>
               </div>
               <Select
@@ -722,10 +821,12 @@ function ProfileSheet({
           <div className="grid gap-3 rounded-lg border p-3">
             <div className="flex items-center justify-between gap-4">
               <div className="grid gap-0.5">
-                <Label className="text-sm">思考开关 · thinking.type</Label>
+                <Label className="text-sm">{tr("思考开关 · thinking.type", "Thinking · thinking.type")}</Label>
                 <p className="text-muted-foreground text-xs">
-                  控制是否发送 thinking 字段。不发送=不带该字段（兼容 MiniMax 等不支持 的模型）；关闭=发
-                  disabled；开启=发 enabled。与下面的强度互相独立。
+                  {tr(
+                    "控制是否发送 thinking 字段。不发送=不带该字段（兼容 MiniMax 等不支持 的模型）；关闭=发 disabled；开启=发 enabled。与下面的强度互相独立。",
+                    "Controls whether the thinking field is sent. Not sent = field omitted (for models like MiniMax that do not support it); Disabled = sends disabled; Enabled = sends enabled. Independent of the effort below.",
+                  )}
                 </p>
               </div>
               <Select value={thinkingType} onValueChange={setThinkingType}>
@@ -743,10 +844,14 @@ function ProfileSheet({
             </div>
             <div className="flex items-center justify-between gap-4 border-t pt-3">
               <div className="grid gap-0.5">
-                <Label className="text-sm">思考强度 · reasoning_effort</Label>
+                <Label className="text-sm">
+                  {tr("思考强度 · reasoning_effort", "Reasoning effort · reasoning_effort")}
+                </Label>
                 <p className="text-muted-foreground text-xs">
-                  独立的强度档位（OpenAI reasoning_effort / Anthropic output_config.effort）。 有些接口没有 thinking
-                  字段、只靠强度即可激活思考，故可单独设置、不发送思考开关。
+                  {tr(
+                    "独立的强度档位（OpenAI reasoning_effort / Anthropic output_config.effort）。 有些接口没有 thinking 字段、只靠强度即可激活思考，故可单独设置、不发送思考开关。",
+                    "A separate effort level (OpenAI reasoning_effort / Anthropic output_config.effort). Some APIs have no thinking field and enable thinking through effort alone, so it can be set on its own without sending the thinking switch.",
+                  )}
                 </p>
               </div>
               <Select value={effort} onValueChange={setEffort}>
@@ -770,12 +875,12 @@ function ProfileSheet({
         <div className="flex gap-2 border-t px-4 py-3">
           <Button variant="outline" onClick={testConnection} disabled={testing}>
             {testing ? <Loader2Icon className="animate-spin" /> : <PlugZapIcon />}
-            {testing ? "测试中…" : "测试连接"}
+            {testing ? tr("测试中…", "Testing…") : tr("测试连接", "Test connection")}
           </Button>
           <Button onClick={save} disabled={saving} className="flex-1">
             {saving && <Loader2Icon className="animate-spin" />}
             {!saving && (isNew ? <PlusIcon /> : <SaveIcon />)}
-            {isNew ? "新建" : "保存"}
+            {isNew ? tr("新建", "Create") : tr("保存", "Save")}
           </Button>
         </div>
       </SheetContent>
@@ -829,24 +934,24 @@ export default function LLMPage() {
   async function activate(id: string, name: string) {
     try {
       await api.activateLLMProfile(id);
-      toast.success(`已激活：${name}`);
+      toast.success(tr(`已激活：${name}`, `Activated: ${name}`));
       await load();
     } catch (e) {
-      toast.error(`激活失败：${(e as Error).message}`);
+      toast.error(tr(`激活失败：${(e as Error).message}`, `Activation failed: ${(e as Error).message}`));
     }
   }
 
   async function remove(p: LLMProfile) {
     if (p.is_default) {
-      toast.error("无法删除当前激活的配置");
+      toast.error(tr("无法删除当前激活的配置", "The active profile cannot be deleted"));
       return;
     }
     try {
       await api.deleteLLMProfile(p.id);
-      toast.success(`已删除：${p.name}`);
+      toast.success(tr(`已删除：${p.name}`, `Deleted: ${p.name}`));
       await load();
     } catch (e) {
-      toast.error(`删除失败：${(e as Error).message}`);
+      toast.error(tr(`删除失败：${(e as Error).message}`, `Delete failed: ${(e as Error).message}`));
     }
   }
 
@@ -858,28 +963,31 @@ export default function LLMPage() {
         <div>
           <h1 className="font-semibold text-xl tracking-tight">LLM</h1>
           <p className="text-muted-foreground text-sm">
-            全 Agent 共享的格式 / 模型 / 限速配置。点击卡片编辑，星标为当前激活配置。
+            {tr(
+              "全 Agent 共享的格式 / 模型 / 限速配置。点击卡片编辑，星标为当前激活配置。",
+              "Format / model / rate-limit profiles shared by all Agents. Click a card to edit; the star marks the active profile.",
+            )}
           </p>
         </div>
         <div className="flex items-center gap-2">
           <Button size="sm" variant="outline" onClick={() => setPoolOpen(true)}>
-            <ZapIcon /> 轮询配置
+            <ZapIcon /> {tr("轮询配置", "Rotation")}
             {poolOn && (
               <Badge variant="outline" className="ml-1 border-emerald-500/50 text-emerald-600 dark:text-emerald-400">
-                已开启
+                {tr("已开启", "On")}
               </Badge>
             )}
           </Button>
           <Button size="sm" variant="outline" onClick={() => openEditor(null)}>
-            <PlusIcon /> 新建
+            <PlusIcon /> {tr("新建", "New")}
           </Button>
         </div>
       </div>
 
       <Tabs defaultValue="profiles" className="flex-1">
         <TabsList>
-          <TabsTrigger value="profiles">模型配置</TabsTrigger>
-          <TabsTrigger value="retry">重试与退避</TabsTrigger>
+          <TabsTrigger value="profiles">{tr("模型配置", "LLM profiles")}</TabsTrigger>
+          <TabsTrigger value="retry">{tr("重试与退避", "Retry & backoff")}</TabsTrigger>
         </TabsList>
 
         <TabsContent value="profiles" className="mt-4">
@@ -931,14 +1039,26 @@ export default function LLMPage() {
                       <span>
                         {p.rate_per_second}/s · {p.rate_per_minute}/min
                       </span>
-                      {p.proxy && <span className="truncate">代理 {p.proxy}</span>}
+                      {p.proxy && (
+                        <span className="truncate">
+                          {tr("代理", "Proxy")} {p.proxy}
+                        </span>
+                      )}
                       {p.reasoning_effort && (
-                        <span>思考 {p.reasoning_effort === "off" ? "关" : p.reasoning_effort}</span>
+                        <span>
+                          {tr("思考", "Thinking")} {p.reasoning_effort === "off" ? tr("关", "off") : p.reasoning_effort}
+                        </span>
                       )}
                       {/* 轮询相关的两个字段只在轮询开着时才有意义，关着时不占版面 */}
                       {poolOn &&
                         !p.is_default &&
-                        (p.pool_exclude ? <span>不参与轮询</span> : <span>优先级 {p.priority ?? 0}</span>)}
+                        (p.pool_exclude ? (
+                          <span>{tr("不参与轮询", "Excluded from rotation")}</span>
+                        ) : (
+                          <span>
+                            {tr("优先级", "Priority")} {p.priority ?? 0}
+                          </span>
+                        ))}
                     </div>
 
                     <div className="mt-1 flex gap-2">
@@ -952,12 +1072,12 @@ export default function LLMPage() {
                           void activate(p.id, p.name);
                         }}
                       >
-                        {p.is_default ? "已激活" : "设为激活"}
+                        {p.is_default ? tr("已激活", "Active") : tr("设为激活", "Set active")}
                       </Button>
                       <Button
                         size="icon"
                         variant="outline"
-                        aria-label="删除配置"
+                        aria-label={tr("删除配置", "Delete profile")}
                         onClick={(e) => {
                           e.stopPropagation();
                           void remove(p);
@@ -972,7 +1092,10 @@ export default function LLMPage() {
             })}
             {profiles.length === 0 && (
               <div className="col-span-full rounded-lg border border-dashed p-10 text-center text-muted-foreground text-sm">
-                还没有模型配置，点击右上角「新建」创建第一个。
+                {tr(
+                  "还没有模型配置，点击右上角「新建」创建第一个。",
+                  'No LLM profiles yet. Click "New" in the top right to create the first one.',
+                )}
               </div>
             )}
           </div>
