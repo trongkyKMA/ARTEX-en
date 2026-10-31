@@ -1,6 +1,4 @@
-# ScopeWeaver agent adapter
-
-[Tiếng Việt](../../docs/vi/ket-noi-claude-code.md) · [한국어](../../docs/ko/agent-adapter.md)
+# ARTEX agent adapter
 
 Connect Claude Code and Codex through a local stdio MCP server, or Pi through its native extension interface. All three use the same validated tools and authenticated ScopeWeaver HTTP API. This adapter lets your coding agent control ScopeWeaver; it does not replace ScopeWeaver's own planner/workers or turn a coding-agent subscription into a model API key.
 
@@ -9,7 +7,7 @@ Connect Claude Code and Codex through a local stdio MCP server, or Pi through it
 Requirements: Node.js 22+, a running ScopeWeaver backend, and an existing admin login. The adapter does not initialize or change your password. Install the separate adapter dependencies:
 
 ```sh
-cd adapters/agent
+cd ARTEX-en/adapters/agent
 npm ci
 export SCOPEWEAVER_URL=http://127.0.0.1:8787
 export SCOPEWEAVER_PASSWORD='your-existing-admin-password'
@@ -24,7 +22,7 @@ Reads are enabled by default. To enable task creation and pause/resume, explicit
 Use an absolute path to this checkout. Claude Code starts the adapter and inherits its environment:
 
 ```sh
-claude mcp add --transport stdio scopeweaver -- node /absolute/path/scopeweaver/adapters/agent/src/mcp.js
+claude mcp add --transport stdio artex -- node /absolute/path/ARTEX-en/adapters/agent/src/mcp.js
 ```
 
 Verify with `claude mcp list`, then use `/mcp` in Claude Code to inspect its tools. [Claude Code MCP documentation](https://code.claude.com/docs/en/mcp).
@@ -32,15 +30,15 @@ Verify with `claude mcp list`, then use `/mcp` in Claude Code to inspect its too
 ### Codex
 
 ```sh
-codex mcp add scopeweaver -- node /absolute/path/scopeweaver/adapters/agent/src/mcp.js
+codex mcp add artex -- node /absolute/path/ARTEX-en/adapters/agent/src/mcp.js
 ```
 
 Verify with `codex mcp list` and `/mcp`. For explicit environment forwarding in a project/user configuration:
 
 ```toml
-[mcp_servers.scopeweaver]
+[mcp_servers.artex]
 command = "node"
-args = ["/absolute/path/scopeweaver/adapters/agent/src/mcp.js"]
+args = ["/absolute/path/ARTEX-en/adapters/agent/src/mcp.js"]
 env_vars = ["SCOPEWEAVER_URL", "SCOPEWEAVER_TOKEN", "SCOPEWEAVER_PASSWORD", "SCOPEWEAVER_LANGUAGE", "SCOPEWEAVER_ALLOW_WRITES"]
 ```
 
@@ -49,7 +47,7 @@ Use the credential variable that you set; omit unused entries. [Official OpenAI 
 ### Pi
 
 ```sh
-pi -e /absolute/path/scopeweaver/adapters/agent/pi-extension.js
+pi -e /absolute/path/ARTEX-en/adapters/agent/pi-extension.js
 ```
 
 The extension registers native Pi tools and uses the same environment variables. It does not require a Pi MCP plugin. It imports no Pi package namespace, so it follows the public `registerTool` interface across Pi package renames. The adapter package also declares `pi.extensions` for Pi's package loader. [Pi extensions](https://github.com/earendil-works/pi/tree/main/packages/coding-agent).

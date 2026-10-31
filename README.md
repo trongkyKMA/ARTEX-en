@@ -197,6 +197,15 @@ Optional: `ARTEX_LLM_PROVIDER` / `ARTEX_LLM_MODEL` / `ARTEX_LLM_BASE_URL` / `ART
 
 **Common flags**: `./start.sh -addr :8787 -proxy :8788` (`-addr` serves the frontend + API, `-proxy` is the traffic-recording proxy). The start script passes its arguments through to `artex` unchanged.
 
+### Drive ARTEX from a coding agent (MCP)
+
+[`adapters/agent`](adapters/agent/README.md) is a local stdio MCP server, also usable as a Pi
+extension, that lets Claude Code or Codex read and steer this backend: tasks, findings and their
+evidence, goals, constraints, intents, worker steering, the task LLM chain, and the main agent. It
+authenticates with the same `ARTEX` password you set at `/setup`, reads by default, and needs
+`SCOPEWEAVER_ALLOW_WRITES=true` before it can change anything. No tool can widen a task's authorized
+scope. See its README for setup and the full tool list.
+
 ### Behind a reverse proxy (HTTPS / only port 443 exposed)
 
 The frontend and the API/SSE are served from the same backend port (default `:8787`), and the live activity feed uses the **same origin** by default, so **you don't need to set `NEXT_PUBLIC_SSE_BASE`** — expose only 443 publicly and keep 8787 internal.
