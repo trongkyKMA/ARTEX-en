@@ -1,6 +1,9 @@
 package db
 
-import "fmt"
+import (
+	"encoding/json"
+	"fmt"
+)
 
 // noChangeRule is one rule of the v4 "no credential or configuration change" pack.
 // They are ordinary intercept rules (tool_input + regex), so each one can be turned
@@ -97,4 +100,39 @@ WHERE NOT EXISTS (SELECT 1 FROM intercept_rules WHERE name = $1)`,
 		}
 	}
 	return d.SetSetting("intercept_default_rules_v4", "done")
+}
+
+// migrateInterceptMonitorTool puts the Monitor tool under intercept on a database
+// that already saved its intercept tool list. Monitor runs an arbitrary shell
+// command like Bash but was missing from the list, so every rule and the LLM judge
+// were bypassed through it. Runs once (own flag): if the user later turns Monitor
+// off on the intercept page, that choice is kept.
+func (d *DB) migrateInterceptMonitorTool() error {
+	if v, _, _ := d.GetSetting("intercept_enabled_tools_monitor_v1"); v == "done" {
+		return nil
+	}
+	val, ok, err := d.GetSetting("intercept_enabled_tools")
+	if err != nil {
+		return err
+	}
+	if ok { // nothing saved → the code default, which already includes Monitor
+		var names []string
+		if err := json.Unmarshal([]byte(val), &names); err != nil {
+			return fmt.Errorf("intercept_enabled_tools: %w", err)
+		}
+		has := false
+		for _, n := range names {
+			if n == "Monitor" {
+				has = true
+				break
+			}
+		}
+		if !has {
+			b, _ := json.Marshal(append(names, "Monitor"))
+			if err := d.SetSetting("intercept_enabled_tools", string(b)); err != nil {
+				return err
+			}
+		}
+	}
+	return d.SetSetting("intercept_enabled_tools_monitor_v1", "done")
 }

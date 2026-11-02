@@ -190,3 +190,41 @@ func TestSeedNoChangeRulesIsToggleSafe(t *testing.T) {
 		}
 	}
 }
+
+// A saved intercept tool list gets Monitor once; a user who later turns it off keeps
+// that choice on the next start.
+func TestMigrateInterceptMonitorTool(t *testing.T) {
+	d, err := Open(testDSN(t))
+	if err != nil {
+		t.Fatal(err)
+	}
+	t.Cleanup(func() { _ = d.Close() })
+	for _, key := range []string{"intercept_enabled_tools", "intercept_enabled_tools_monitor_v1"} {
+		val, ok, _ := d.GetSetting(key)
+		key := key
+		t.Cleanup(func() {
+			if ok {
+				_ = d.SetSetting(key, val)
+			} else {
+				_, _ = d.Exec(`DELETE FROM settings WHERE key=$1`, key)
+			}
+		})
+	}
+	list := func() string { v, _, _ := d.GetSetting("intercept_enabled_tools"); return v }
+
+	_ = d.SetSetting("intercept_enabled_tools", `["Bash","Write"]`)
+	_ = d.SetSetting("intercept_enabled_tools_monitor_v1", "")
+	if err := d.migrateInterceptMonitorTool(); err != nil {
+		t.Fatal(err)
+	}
+	if got := list(); got != `["Bash","Write","Monitor"]` {
+		t.Fatalf("Monitor not added: %s", got)
+	}
+	_ = d.SetSetting("intercept_enabled_tools", `["Bash","Write"]`) // user turns Monitor off
+	if err := d.migrateInterceptMonitorTool(); err != nil {
+		t.Fatal(err)
+	}
+	if got := list(); got != `["Bash","Write"]` {
+		t.Fatalf("user choice overridden: %s", got)
+	}
+}

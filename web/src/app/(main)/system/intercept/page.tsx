@@ -82,6 +82,7 @@ function sdkTool(key: string, description: string): Tool {
 
 const SDK_EXEC: Tool[] = [
   sdkTool("Bash", tr("在 shell 中执行命令", "Run commands in a shell")),
+  sdkTool("Monitor", tr("运行流式命令并持续推送输出", "Run a streaming command and stream its output")),
   sdkTool("WebFetch", tr("发起 HTTP/HTTPS 请求（含代理支持）", "Make HTTP/HTTPS requests (proxy supported)")),
   sdkTool("web_search", tr("网络搜索", "Web search")),
   sdkTool("shell_open", tr("开启持久 PTY 交互会话", "Open a persistent interactive PTY session")),

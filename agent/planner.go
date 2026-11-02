@@ -444,6 +444,9 @@ func (p *Planner) Plan(ctx context.Context, taskID int64, as *db.AssetStore, ts 
 		NonStreaming: p.nonStreaming(), // use Provider.Complete when this profile picks non-streaming
 		MaxTokens:    p.maxTokens(),    // 0 = send no cap, the server default decides
 	}
+	if h := toolHooksFrom(ctx); h != nil { // the task's Guard: same intercept rules as a worker
+		opts.Hooks = h
+	}
 	if p.tx != nil { // persist raw LLM conversation; one accumulating file per task's planner
 		opts.Transcript = p.tx
 		opts.SessionID = fmt.Sprintf("exp%d-planner", ts.ID())

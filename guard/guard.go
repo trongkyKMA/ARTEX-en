@@ -61,7 +61,7 @@ func (g *Guard) preToolUse(ctx context.Context, ev hook.Event) hook.Result {
 	// applyIntercept below. Other tools record an empty command.
 	var cmd string
 	switch ev.ToolName {
-	case "Bash", "shell_open":
+	case "Bash", "Monitor", "shell_open":
 		var in struct {
 			Command string `json:"command"`
 		}

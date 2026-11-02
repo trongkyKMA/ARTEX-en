@@ -164,6 +164,9 @@ func (m *MainAgent) Chat(ctx context.Context, taskID int64, mainSeg int, as *db.
 		NonStreaming: m.nonStreaming(), // use Provider.Complete when this profile picks non-streaming
 		MaxTokens:    m.maxTokens(),    // 0 = send no cap, the server default decides
 	}
+	if h := toolHooksFrom(ctx); h != nil { // the task's Guard: same intercept rules as a worker
+		opts.Hooks = h
+	}
 	if m.tx != nil { // persist raw human↔AI conversation; one accumulating file per segment
 		opts.Transcript = m.tx
 		// Segment 0 keeps the legacy "exp%d-main" name so existing transcripts still

@@ -139,9 +139,11 @@ func (i *Interceptor) SetReviewer(r Reviewer) {
 }
 
 // defaultEnabledTools is the hard-coded set of tools that enter the intercept
-// rule system when no intercept_enabled_tools setting has been saved.
+// rule system when no intercept_enabled_tools setting has been saved. Monitor runs
+// an arbitrary shell command like Bash, so it must be gated too (db adds it to a
+// saved list once, see migrateInterceptMonitorTool).
 var defaultEnabledTools = []string{
-	"Bash", "WebFetch", "web_search",
+	"Bash", "Monitor", "WebFetch", "web_search",
 	"shell_open", "shell_send",
 	"Write", "Edit", "MultiEdit",
 }

@@ -603,3 +603,17 @@ func (s *Server) interceptExecution(w http.ResponseWriter, r *http.Request) {
 	}
 	writeJSON(w, 200, map[string]any{"conversation_id": target.ConversationID, "task_id": target.TaskID, "session": target.Session, "seq": target.Seq, "items": activityDTOs(target.Items)})
 }
+
+// guardedAgentCtx routes a planner or main-agent run through the task's Guard, the
+// same intercept rules and LLM judge a worker's tool calls go through. label names
+// the agent on approval requests and intercept activities.
+func guardedAgentCtx(ctx context.Context, t *Task, label string, emit func(db.Activity)) context.Context {
+	if t == nil || t.Guard == nil {
+		return ctx
+	}
+	ctx = intercept.WithTaskContext(ctx, t.ID, label, func(a db.Activity) {
+		a.Worker = label
+		emit(a)
+	})
+	return agent.WithToolHooks(ctx, t.Guard.Hooks())
+}
