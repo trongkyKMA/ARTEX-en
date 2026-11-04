@@ -9,7 +9,7 @@ The backdoor is in the published image only. The source code of the upstream rep
 ### What this fork does
 
 - **Never runs an upstream binary.** `docker compose` builds the image from this checkout (`pull_policy: build`); there is no image to pull. One-click self-update is disabled, and at startup any staged (`artex.new`) or backed-up (`artex.old`) binary next to the executable is deleted instead of being swapped in or rolled back to.
-- **Web port on localhost by default** (`ARTEX_BIND=127.0.0.1`). Reach it through an SSH tunnel or a TLS reverse proxy.
+- **Web port binding is explicit** (`ARTEX_BIND`, default `0.0.0.0` for an internal-network server). Never expose port 8787 to the internet; restrict it with the firewall, or set `ARTEX_BIND=127.0.0.1` and use an SSH tunnel or a TLS reverse proxy.
 - **First-run setup needs a one-time token.** `POST /api/auth/init` (setting the admin password on a fresh install) requires the token in `setup.token` (`docker compose exec artex cat /app/setup.token`). It is never logged or returned by the API and is deleted once the password is set.
 - **Agent tool calls are gated consistently.** Workers, the planner and the main agent go through the same intercept rules and LLM judge, including Bash, Monitor, MCP tools (`mcp__*`) and user-defined tools (`@custom`). Built-in `[builtin][no-change]` rules block password and configuration changes on targets; each can be turned off on the intercept page.
 

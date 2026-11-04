@@ -49,8 +49,8 @@ install_docker(){
   docker compose build artex
   info "Starting..."
   docker compose up -d
-  ok "Started -> http://localhost:8787 (listening on 127.0.0.1 only; see ARTEX_BIND in .env)"
-  info "Remote server? Open the UI through an SSH tunnel: ssh -L 8787:127.0.0.1:8787 user@server"
+  ok "Started -> http://<this server>:8787 (listening on every interface; see ARTEX_BIND in .env)"
+  info "Do not expose port 8787 to the internet; limit who can reach it with the firewall"
   info "First login asks for the one-time setup token: docker compose exec artex cat /app/setup.token"
   info "View logs: docker compose logs -f artex"
 }

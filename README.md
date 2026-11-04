@@ -89,7 +89,7 @@ The script checks for Docker (and installs it if missing), then lets you choose 
 
 When it's done, open **http://localhost:8787**. The first visit goes to `/setup`, which asks for the **one-time setup token** before you can set the admin password: `docker compose exec artex cat /app/setup.token` (local install: `setup.token` next to the `artex` binary). The token is never logged and is deleted once the password is set, so nobody who merely reaches the page can claim a fresh install.
 
-The web port listens on **127.0.0.1 only** by default. On a remote server open it through an SSH tunnel (`ssh -L 8787:127.0.0.1:8787 user@server`) or a TLS reverse proxy; set `ARTEX_BIND=0.0.0.0` in `.env` only behind a firewall that limits who can connect.
+The web port listens on **every interface** (`ARTEX_BIND=0.0.0.0`), for a server on an internal network. Never expose port 8787 to the internet, and limit who can reach it with the network firewall. To keep it on localhost set `ARTEX_BIND=127.0.0.1` in `.env` and open it through an SSH tunnel (`ssh -L 8787:127.0.0.1:8787 user@server`) or a TLS reverse proxy.
 
 ### Option 2: Docker Compose (recommended)
 
@@ -99,7 +99,7 @@ cd ARTEX-en
 cp .env.example .env          # set POSTGRES_PASSWORD, optionally ANTHROPIC_API_KEY
 docker compose up -d --build  # builds the artex-en:local image from this checkout + starts postgres
 docker compose exec artex cat /app/setup.token   # one-time token for the first /setup
-# → http://localhost:8787 (localhost only; see ARTEX_BIND in .env)
+# → http://<server>:8787 (all interfaces; see ARTEX_BIND in .env)
 ```
 
 > **Never use the published `tomicdd/artex` image** (or an old compose file that pulls it): it carries a login backdoor. This fork's compose file builds the image from source (`pull_policy: build`), so `docker compose up` always runs the code you checked out. The first build takes several minutes.
