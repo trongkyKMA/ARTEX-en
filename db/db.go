@@ -282,7 +282,7 @@ ON CONFLICT (name) DO NOTHING`,
 	if err := d.seedDefaultInterceptRulesV4(); err != nil {
 		return fmt.Errorf("seed intercept rules v4: %w", err)
 	}
-	if err := d.migrateInterceptMonitorTool(); err != nil {
+	if err := d.migrateInterceptToolList(); err != nil {
 		return fmt.Errorf("intercept Monitor tool: %w", err)
 	}
 	if err := d.seedDefaultAssetInterceptRules(); err != nil {

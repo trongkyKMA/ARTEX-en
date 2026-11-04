@@ -56,6 +56,10 @@ func Bootstrap() (Action, State) {
 		log.Printf("[update] skipping bootstrap: %v", err)
 		return Continue, State{}
 	}
+	if DisabledReason != "" {
+		discardUpdateFiles(p)
+		return Continue, State{}
+	}
 
 	if _, err := os.Stat(p.New); err == nil {
 		return applyStaged(p)
@@ -240,6 +244,9 @@ func rollback(p Paths) error {
 // Rollback implements /api/update/rollback: actively go back to the previous version.
 // It only swaps; the restart is again left to the supervisor script (the caller then exits with ExitRestart).
 func Rollback() error {
+	if DisabledReason != "" {
+		return errors.New(DisabledReason)
+	}
 	p, err := ResolvePaths()
 	if err != nil {
 		return err
@@ -296,4 +303,16 @@ func orUnknown(s string) string {
 		return "unknown version"
 	}
 	return s
+}
+
+// discardUpdateFiles removes every self-update artifact next to the executable when
+// one-click update is disabled: a staged artex.new is never swapped in and an
+// artex.old is never rolled back to. Either could be an upstream release binary (the
+// published upstream image was found backdoored), so none of them may run.
+func discardUpdateFiles(p Paths) {
+	for _, f := range []string{p.New, p.Sum, p.Old, p.Marker} {
+		if err := os.Remove(f); err == nil {
+			log.Printf("[update] one-click update is disabled; removed %s", f)
+		}
+	}
 }

@@ -191,15 +191,16 @@ func TestSeedNoChangeRulesIsToggleSafe(t *testing.T) {
 	}
 }
 
-// A saved intercept tool list gets Monitor once; a user who later turns it off keeps
-// that choice on the next start.
-func TestMigrateInterceptMonitorTool(t *testing.T) {
+// A saved intercept tool list gets Monitor, mcp__* and @custom once; a user who later
+// turns them off keeps that choice on the next start.
+func TestMigrateInterceptToolList(t *testing.T) {
 	d, err := Open(testDSN(t))
 	if err != nil {
 		t.Fatal(err)
 	}
 	t.Cleanup(func() { _ = d.Close() })
-	for _, key := range []string{"intercept_enabled_tools", "intercept_enabled_tools_monitor_v1"} {
+	keys := []string{"intercept_enabled_tools", "intercept_enabled_tools_monitor_v1", "intercept_enabled_tools_wildcards_v2"}
+	for _, key := range keys {
 		val, ok, _ := d.GetSetting(key)
 		key := key
 		t.Cleanup(func() {
@@ -212,16 +213,18 @@ func TestMigrateInterceptMonitorTool(t *testing.T) {
 	}
 	list := func() string { v, _, _ := d.GetSetting("intercept_enabled_tools"); return v }
 
-	_ = d.SetSetting("intercept_enabled_tools", `["Bash","Write"]`)
-	_ = d.SetSetting("intercept_enabled_tools_monitor_v1", "")
-	if err := d.migrateInterceptMonitorTool(); err != nil {
+	_ = d.SetSetting("intercept_enabled_tools", `["Bash","Write","mcp__*"]`)
+	for _, flag := range keys[1:] {
+		_ = d.SetSetting(flag, "")
+	}
+	if err := d.migrateInterceptToolList(); err != nil {
 		t.Fatal(err)
 	}
-	if got := list(); got != `["Bash","Write","Monitor"]` {
-		t.Fatalf("Monitor not added: %s", got)
+	if got := list(); got != `["Bash","Write","mcp__*","Monitor","@custom"]` {
+		t.Fatalf("missing tools not added once: %s", got)
 	}
-	_ = d.SetSetting("intercept_enabled_tools", `["Bash","Write"]`) // user turns Monitor off
-	if err := d.migrateInterceptMonitorTool(); err != nil {
+	_ = d.SetSetting("intercept_enabled_tools", `["Bash","Write"]`) // user turns them off
+	if err := d.migrateInterceptToolList(); err != nil {
 		t.Fatal(err)
 	}
 	if got := list(); got != `["Bash","Write"]` {

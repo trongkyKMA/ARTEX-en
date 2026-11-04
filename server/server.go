@@ -45,6 +45,7 @@ type Server struct {
 
 	skillDir string // root directory for skill subdirectories
 	jwtKey   []byte // HS256 signing key loaded from / generated into dataDir/jwt.key
+	setup    setupGate // one-time token required by the first-run POST /api/auth/init
 
 	// concMu serializes concurrency-cap decisions (admission + reconcile) so a
 	// scheduler tick and an HTTP settings change / task creation can't both count
@@ -152,6 +153,7 @@ func New(ctx context.Context, m *Manager, skillDir string, dataDir string, keyDi
 		provByProfile:  map[int64]*provEntry{}, llmHealth: newLLMHealthRegistry(m.pg),
 		taskAgents: map[string]*taskAgentBundle{}, archiveWake: make(chan struct{}, 1)}
 	s.initSideQuestions()
+	s.initSetupToken(keyDir)
 	// The circuit-breaker threshold/cooldown are hot parameters on the failure path; push the global retry policy to the Registry once at startup;
 	// then push it again every time the policy is saved (saveLLMRetryPolicy).
 	s.applyRetryPolicy()

@@ -235,3 +235,10 @@ UPDATE tools SET description=$2, schema=$3, agents=$4, enabled=$5 WHERE key=$1`,
 		key, desc, schema, agents, enabled)
 	return err
 }
+
+// IsCustomTool reports whether key names a user-defined (system=false) tool.
+func (d *DB) IsCustomTool(key string) (bool, error) {
+	var ok bool
+	err := d.QueryRow(`SELECT EXISTS(SELECT 1 FROM tools WHERE key=$1 AND system=false)`, key).Scan(&ok)
+	return ok, err
+}

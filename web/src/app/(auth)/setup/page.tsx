@@ -13,6 +13,7 @@ import { tr } from "@/lib/i18n";
 
 export default function SetupPage() {
   const router = useRouter();
+  const [setupToken, setSetupToken] = useState("");
   const [password, setPassword] = useState("");
   const [confirm, setConfirm] = useState("");
   const [error, setError] = useState("");
@@ -48,7 +49,7 @@ export default function SetupPage() {
     setLoading(true);
     setError("");
     try {
-      const { token } = await api.initPassword(password);
+      const { token } = await api.initPassword(password, setupToken.trim());
       auth.setToken(token);
       router.replace("/function/tasks");
     } catch (err) {
@@ -89,8 +90,8 @@ export default function SetupPage() {
                     "The backend or database is unavailable. Setup is disabled for now so an existing password is not overwritten. Try again once the service is back.",
                   )
                 : tr(
-                    "首次使用 ARTEX，请为账户设置一个登录密码（至少 8 位）",
-                    "First time using ARTEX: set a login password for the account (at least 8 characters)",
+                    "首次使用 ARTEX：先输入服务器上的一次性初始化令牌，再设置登录密码（至少 8 位）",
+                    "First time using ARTEX: enter the one-time setup token from the server, then set a login password (at least 8 characters)",
                   )}
             </p>
           </div>
@@ -104,6 +105,22 @@ export default function SetupPage() {
           ) : (
             <form onSubmit={handleSubmit} className="flex flex-col gap-4">
               <div className="space-y-1.5">
+                <Label htmlFor="setup-token">{tr("初始化令牌", "Setup token")}</Label>
+                <Input
+                  id="setup-token"
+                  value={setupToken}
+                  onChange={(e) => setSetupToken(e.target.value)}
+                  placeholder={tr("服务器上的 setup.token", "setup.token on the server")}
+                  autoFocus
+                  autoComplete="off"
+                  spellCheck={false}
+                />
+                <p className="text-xs text-muted-foreground">
+                  {tr("在服务器上运行：", "Run on the server:")}{" "}
+                  <code className="rounded bg-muted px-1 py-0.5">docker compose exec artex cat /app/setup.token</code>
+                </p>
+              </div>
+              <div className="space-y-1.5">
                 <Label htmlFor="password">{tr("新密码", "New password")}</Label>
                 <Input
                   id="password"
@@ -111,7 +128,6 @@ export default function SetupPage() {
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
                   placeholder={tr("至少 8 位", "At least 8 characters")}
-                  autoFocus
                   autoComplete="new-password"
                 />
               </div>
@@ -127,7 +143,7 @@ export default function SetupPage() {
                 />
               </div>
               {error && <p className="text-sm text-destructive">{error}</p>}
-              <Button type="submit" className="w-full" disabled={loading || !password || !confirm}>
+              <Button type="submit" className="w-full" disabled={loading || !setupToken.trim() || !password || !confirm}>
                 {loading ? tr("保存中...", "Saving...") : tr("设置密码并登录", "Set password and log in")}
               </Button>
             </form>

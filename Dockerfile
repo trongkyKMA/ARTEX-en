@@ -1,7 +1,7 @@
 # syntax=docker/dockerfile:1
 #
 # English fork: the image is built from this checkout (`docker compose build`, run by install.sh / update.sh).
-# Do not pull tomicdd/artex: that published image is the upstream Chinese build.
+# Never pull tomicdd/artex: that published image carries a login backdoor (see SECURITY.md).
 #
 # Stage 1 builds the static web UI, stage 2 the Go binary with the UI embedded, stage 3 is the runtime
 # image with common tools plus that single binary.

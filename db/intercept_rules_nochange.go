@@ -102,37 +102,59 @@ WHERE NOT EXISTS (SELECT 1 FROM intercept_rules WHERE name = $1)`,
 	return d.SetSetting("intercept_default_rules_v4", "done")
 }
 
-// migrateInterceptMonitorTool puts the Monitor tool under intercept on a database
-// that already saved its intercept tool list. Monitor runs an arbitrary shell
-// command like Bash but was missing from the list, so every rule and the LLM judge
-// were bypassed through it. Runs once (own flag): if the user later turns Monitor
-// off on the intercept page, that choice is kept.
-func (d *DB) migrateInterceptMonitorTool() error {
-	if v, _, _ := d.GetSetting("intercept_enabled_tools_monitor_v1"); v == "done" {
+// migrateInterceptToolList adds tools that were missing from the default intercept
+// tool list to a list a database already saved, once per entry group (own flag), so
+// a tool the user later turns off on the intercept page stays off:
+//   - v1: Monitor runs an arbitrary shell command like Bash.
+//   - v2: mcp__* (every MCP tool) and @custom (every user-defined tool, which an
+//     agent can create itself to run commands or send HTTP).
+//
+// Without them every intercept rule and the LLM judge were bypassed through these tools.
+func (d *DB) migrateInterceptToolList() error {
+	for _, step := range []struct {
+		flag  string
+		tools []string
+	}{
+		{"intercept_enabled_tools_monitor_v1", []string{"Monitor"}},
+		{"intercept_enabled_tools_wildcards_v2", []string{"mcp__*", "@custom"}},
+	} {
+		if err := d.addInterceptToolsOnce(step.flag, step.tools...); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+func (d *DB) addInterceptToolsOnce(flag string, tools ...string) error {
+	if v, _, _ := d.GetSetting(flag); v == "done" {
 		return nil
 	}
 	val, ok, err := d.GetSetting("intercept_enabled_tools")
 	if err != nil {
 		return err
 	}
-	if ok { // nothing saved → the code default, which already includes Monitor
+	if ok { // nothing saved → the code default, which already has them
 		var names []string
 		if err := json.Unmarshal([]byte(val), &names); err != nil {
 			return fmt.Errorf("intercept_enabled_tools: %w", err)
 		}
-		has := false
+		have := map[string]bool{}
 		for _, n := range names {
-			if n == "Monitor" {
-				has = true
-				break
+			have[n] = true
+		}
+		changed := false
+		for _, t := range tools {
+			if !have[t] {
+				names = append(names, t)
+				changed = true
 			}
 		}
-		if !has {
-			b, _ := json.Marshal(append(names, "Monitor"))
+		if changed {
+			b, _ := json.Marshal(names)
 			if err := d.SetSetting("intercept_enabled_tools", string(b)); err != nil {
 				return err
 			}
 		}
 	}
-	return d.SetSetting("intercept_enabled_tools_monitor_v1", "done")
+	return d.SetSetting(flag, "done")
 }

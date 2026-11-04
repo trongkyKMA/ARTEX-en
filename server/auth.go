@@ -154,7 +154,8 @@ func (s *Server) authStatus(w http.ResponseWriter, r *http.Request) {
 	writeJSON(w, 200, map[string]any{"initialized": hash != ""})
 }
 
-// POST /api/auth/init — sets the password for the first time; rejected if already set.
+// POST /api/auth/init — sets the password for the first time; rejected if already set
+// or without the one-time setup token (see setup_token.go).
 func (s *Server) authInit(w http.ResponseWriter, r *http.Request) {
 	pg := s.pg(w)
 	if pg == nil {
@@ -170,10 +171,16 @@ func (s *Server) authInit(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	var req struct {
-		Password string `json:"password"`
+		Password   string `json:"password"`
+		SetupToken string `json:"setup_token"`
 	}
 	if err := decode(r, &req); err != nil || req.Password == "" {
 		writeErr(w, 400, "password must not be empty")
+		return
+	}
+	if !s.checkSetupToken(req.SetupToken) {
+		writeErr(w, 403, "invalid setup token: read it on the server from "+setupTokenFilename+
+			" (Docker: docker compose exec artex cat /app/"+setupTokenFilename+")")
 		return
 	}
 	if msg := validatePassword(req.Password); msg != "" {
@@ -197,6 +204,7 @@ func (s *Server) authInit(w http.ResponseWriter, r *http.Request) {
 		writeErr(w, 403, "password already set")
 		return
 	}
+	s.consumeSetupToken()
 	tok, err := signJWT(s.jwtKey)
 	if err != nil {
 		writeErr(w, 500, "failed to generate token")

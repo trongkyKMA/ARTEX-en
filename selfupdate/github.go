@@ -15,8 +15,10 @@ import (
 const Repo = "Autumn-27/artex"
 
 // DisabledReason, when non-empty, turns one-click update off. The English fork sets it: Repo's releases are
-// the upstream Chinese build, so installing one would silently replace the fork.
-const DisabledReason = "One-click update is turned off in the English fork: the upstream release would replace it with the Chinese build. To update, run git pull and then ./update.sh on the server."
+// upstream binaries this fork does not build or verify (the published upstream Docker image was found to
+// carry a login backdoor), so the fork only ever runs a binary built from its own checkout. Bootstrap and
+// Rollback refuse to run any staged or backed-up binary while it is set.
+const DisabledReason = "One-click update is turned off in the English fork: it only runs binaries built from its own source, never upstream release binaries. To update, run git pull and then ./update.sh on the server."
 
 // latestURL is GitHub's "latest release" endpoint. It automatically skips prereleases and drafts.
 const latestURL = "https://api.github.com/repos/" + Repo + "/releases/latest"

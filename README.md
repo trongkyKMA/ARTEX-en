@@ -6,6 +6,9 @@ AI autonomous penetration testing system. Multi-agent LLM, Go backend, Next.js f
 
 > English fork of [trhhubsd/ARTEX](https://github.com/trhhubsd/ARTEX), built and updated from this repository.
 
+> [!CAUTION]
+> **The published `tomicdd/artex` Docker image is backdoored** (unauthenticated command execution through the login form). This fork never uses it: it always builds from source. If you ever ran that image, treat the host as compromised — see [SECURITY.md](SECURITY.md).
+
 [![License: AGPL-3.0](https://img.shields.io/badge/license-AGPL--3.0-blue)](LICENSE)
 
 </div>
@@ -84,7 +87,9 @@ The script checks for Docker (and installs it if missing), then lets you choose 
 - **① Everything in Docker**: enter a Postgres password (press Enter for a random one) → `.env` is written → the image is built from this checkout → `docker compose up -d`.
 - **② Run locally**: choose a database (connect to an existing one / start one in Docker) → `config.json` is generated → `go` builds a single binary with the UI embedded → it starts.
 
-When it's done, open **http://localhost:8787** (the first visit goes to `/setup` to set the admin password).
+When it's done, open **http://localhost:8787**. The first visit goes to `/setup`, which asks for the **one-time setup token** before you can set the admin password: `docker compose exec artex cat /app/setup.token` (local install: `setup.token` next to the `artex` binary). The token is never logged and is deleted once the password is set, so nobody who merely reaches the page can claim a fresh install.
+
+The web port listens on **127.0.0.1 only** by default. On a remote server open it through an SSH tunnel (`ssh -L 8787:127.0.0.1:8787 user@server`) or a TLS reverse proxy; set `ARTEX_BIND=0.0.0.0` in `.env` only behind a firewall that limits who can connect.
 
 ### Option 2: Docker Compose (recommended)
 
@@ -93,12 +98,13 @@ git clone https://github.com/trongkyKMA/ARTEX-en
 cd ARTEX-en
 cp .env.example .env          # set POSTGRES_PASSWORD, optionally ANTHROPIC_API_KEY
 docker compose up -d --build  # builds the artex-en:local image from this checkout + starts postgres
-# → http://localhost:8787
+docker compose exec artex cat /app/setup.token   # one-time token for the first /setup
+# → http://localhost:8787 (localhost only; see ARTEX_BIND in .env)
 ```
 
-> **Do not use the published `tomicdd/artex` image** (or an old compose file that pulls it): that is the upstream **Chinese** build. This fork's compose file builds the image from source (`pull_policy: build`), so `docker compose up` always runs the code you checked out. The first build takes several minutes.
+> **Never use the published `tomicdd/artex` image** (or an old compose file that pulls it): it carries a login backdoor. This fork's compose file builds the image from source (`pull_policy: build`), so `docker compose up` always runs the code you checked out. The first build takes several minutes.
 >
-> **Moving from the upstream image?** Keep your database: after switching to this compose file and starting it, ARTEX rewrites the built-in prompts, tool descriptions, intercept rules and preset agents that are still in Chinese to the English defaults (replaced prompts stay in each agent's version history). Rows you edited in English are not touched; your own data — tasks, findings, assets, conversations — is not translated.
+> **Moving from the upstream image?** Do **not** reuse its database volume, `data/` or `skills/` directories: anything planted while the backdoored image ran (custom tools, MCP servers, LLM base URLs, webhooks, skills) would survive the switch. Install fresh and rotate every secret that instance held — the steps are in [SECURITY.md](SECURITY.md).
 
 The image includes common tools (ripgrep/curl/vim/npm/nmap…); `./skills` and `./data` are bind-mounted so they persist.
 
@@ -141,7 +147,7 @@ ARTEX_TARGETS=linux/amd64,windows/amd64 ./build.sh --release
 
 > An upgrade replaces the program, not the data: the Postgres volume `pgdata`, `./data` (jwt.key / SQLite, etc.) and `./skills` are kept. **No manual database migration is needed** — on every start `artex` re-runs `schema.sql` idempotently (including `ADD COLUMN` / `CREATE INDEX IF NOT EXISTS`), so "restart = migrate". Backing up `./data` and the database before upgrading is still recommended.
 
-> **One-click update in the UI is turned off in this fork.** It downloads releases of the upstream repository, which are the Chinese build and would silently replace this one. The **Version & updates** card on the settings page says so; update with one of the options below. Upstream release zips are likewise the Chinese build — don't use them to update this fork.
+> **One-click update in the UI is turned off in this fork.** It would download upstream release binaries, which this fork does not build or verify (the upstream Docker image was found backdoored, see [SECURITY.md](SECURITY.md)). The **Version & updates** card on the settings page says so; update with one of the options below, which rebuild from source. Never use upstream release zips or images.
 
 ### Option 1: update script (recommended)
 

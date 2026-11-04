@@ -27,8 +27,8 @@ update_docker(){
     || die "docker / docker compose not found, please deploy with ./install.sh first"
   [ -f .env ] || die ".env not found, please run ./install.sh first to complete the initial deployment"
 
-  # The English fork builds its image from this checkout (the published tomicdd/artex image is the upstream
-  # Chinese build), so updating = rebuild from the code just pulled.
+  # The English fork builds its image from this checkout (the published tomicdd/artex image is backdoored,
+  # see SECURITY.md), so updating = rebuild from the code just pulled.
   # Only touch artex: postgres is pinned to 16-alpine and does not need upgrading (pulling it just wastes bandwidth,
   # and a major version change carries compatibility risk). artex declares depends_on postgres, so `up` with the service name
   # starts pg automatically if it is not running, and leaves an already running one as is (not recreated).

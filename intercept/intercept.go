@@ -140,13 +140,24 @@ func (i *Interceptor) SetReviewer(r Reviewer) {
 
 // defaultEnabledTools is the hard-coded set of tools that enter the intercept
 // rule system when no intercept_enabled_tools setting has been saved. Monitor runs
-// an arbitrary shell command like Bash, so it must be gated too (db adds it to a
-// saved list once, see migrateInterceptMonitorTool).
+// an arbitrary shell command like Bash, so it must be gated too; MCP tools and
+// user-defined tools (which can run commands or send HTTP, and which an agent can
+// create itself) are gated through the two wildcard entries. db adds the newer
+// entries to a saved list once, see migrateInterceptToolList.
 var defaultEnabledTools = []string{
 	"Bash", "Monitor", "WebFetch", "web_search",
 	"shell_open", "shell_send",
 	"Write", "Edit", "MultiEdit",
+	AllMCPTools, AllCustomTools,
 }
+
+// Wildcard entries of the intercept tool list. An entry ending in "*" matches every
+// tool whose name starts with the part before it; AllCustomTools matches every
+// user-defined (system=false) tool of the tools table.
+const (
+	AllMCPTools    = "mcp__*"
+	AllCustomTools = "@custom"
+)
 
 // New creates an Interceptor backed by d. The rule cache is lazy-loaded on
 // first use.
@@ -234,19 +245,36 @@ func (i *Interceptor) rules() ([]compiledRule, error) {
 // pattern as rules().
 func (i *Interceptor) IsToolEnabled(name string) bool {
 	i.mu.RLock()
-	if i.enabledTools != nil {
-		v := i.enabledTools[name]
-		i.mu.RUnlock()
-		return v
-	}
+	set := i.enabledTools
 	i.mu.RUnlock()
-
-	i.mu.Lock()
-	defer i.mu.Unlock()
-	if i.enabledTools == nil {
-		_ = i.loadLocked()
+	if set == nil {
+		i.mu.Lock()
+		if i.enabledTools == nil {
+			_ = i.loadLocked()
+		}
+		set = i.enabledTools
+		i.mu.Unlock()
 	}
-	return i.enabledTools[name]
+	return i.toolInSet(set, name)
+}
+
+// toolInSet matches name against the enabled set, including its wildcard entries.
+// The custom-tool lookup is a live query (tools can be created at any time, also by
+// an agent); when it fails the tool is treated as gated.
+func (i *Interceptor) toolInSet(set map[string]bool, name string) bool {
+	if set[name] {
+		return true
+	}
+	for k := range set {
+		if prefix, ok := strings.CutSuffix(k, "*"); ok && strings.HasPrefix(name, prefix) {
+			return true
+		}
+	}
+	if set[AllCustomTools] && i.db != nil {
+		custom, err := i.db.IsCustomTool(name)
+		return custom || err != nil
+	}
+	return false
 }
 
 // GetEnabledTools returns the ordered list of tool names that are currently

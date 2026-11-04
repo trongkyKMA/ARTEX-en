@@ -11,7 +11,7 @@ import (
 )
 
 // The planner and main agent get the task's Guard through guardedAgentCtx, and
-// Monitor is gated like Bash. A [builtin][no-change] rule blocks while enabled and
+// Monitor, MCP tools and user-defined tools are gated like Bash. A [builtin][no-change] rule blocks while enabled and
 // lets the call through once disabled (judge off: nothing else decides).
 func TestTaskGuardGatesMonitorAndRuleToggle(t *testing.T) {
 	dsn, _, err := db.DSN()
@@ -73,6 +73,22 @@ func TestTaskGuardGatesMonitorAndRuleToggle(t *testing.T) {
 		if blocked(tool, "nmap -sV 10.0.0.0/24") {
 			t.Errorf("%s: a scan must not be blocked", tool)
 		}
+	}
+
+	// MCP tools and user-defined tools are gated too; read-only SDK tools are not.
+	const customKey = "zz_guard_test_runner"
+	if err := d.CreateCustomTool(&db.Tool{Key: customKey, Kind: "command", Enabled: true,
+		Exec: json.RawMessage(`{"command":"{args}"}`)}); err != nil {
+		t.Fatal(err)
+	}
+	t.Cleanup(func() { _ = d.DeleteCustomTool(customKey) })
+	for _, tool := range []string{"mcp__ssh__exec", customKey} {
+		if !blocked(tool, "passwd admin") {
+			t.Errorf("%s: password change must be blocked", tool)
+		}
+	}
+	if blocked("Read", "passwd admin") {
+		t.Error("Read is not in the intercept list and must not be blocked")
 	}
 
 	setRule(false)
